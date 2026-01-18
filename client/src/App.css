@@ -1,0 +1,8 @@
+/* App specific styles */
+.app-container {
+  @apply min-h-screen flex flex-col;
+}
+
+.main-content {
+  @apply flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full;
+}
