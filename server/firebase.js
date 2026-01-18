@@ -13,29 +13,47 @@ let db;
 try {
     console.log("Initializing Firebase...");
     if (admin.apps.length === 0) {
-        if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-            const serviceAccountPath = path.resolve(__dirname, process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
-            console.log("Using Service Account from:", serviceAccountPath);
-            admin.initializeApp({
-                credential: admin.credential.cert(serviceAccountPath)
-            });
-        } else if (process.env.FIREBASE_PRIVATE_KEY) {
-            console.log("Using Private Key from Environment Variables");
-            admin.initializeApp({
-                credential: admin.credential.cert({
-                    projectId: process.env.FIREBASE_PROJECT_ID,
-                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-                    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-                })
-            });
-        } else if (process.env.FIREBASE_PROJECT_ID) {
-            console.log("Using Project ID only (Attempting Application Default Credentials)");
-            // Attempt local discovery or application default credentials
-            admin.initializeApp({
-                projectId: process.env.FIREBASE_PROJECT_ID
-            });
+        let serviceAccountPath;
+
+        // Check for Render.com secret files first
+        if (process.env.RENDER) {
+            serviceAccountPath = '/etc/secrets/serviceAccountKey.json';
+            console.log("Render detected - Using Secret File from:", serviceAccountPath);
         } else {
-            throw new Error("No Firebase configuration found.");
+            // Local development
+            serviceAccountPath = path.resolve(__dirname, 'serviceAccountKey.json');
+            console.log("Local development - Using Service Account from:", serviceAccountPath);
+        }
+
+        // Try to initialize with file
+        try {
+            const fs = await import('fs');
+            if (fs.existsSync(serviceAccountPath)) {
+                const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+                admin.initializeApp({
+                    credential: admin.credential.cert(serviceAccount)
+                });
+                console.log("Firebase initialized with service account file");
+            } else {
+                throw new Error(`Service account file not found at: ${serviceAccountPath}`);
+            }
+        } catch (fileError) {
+            console.error("Failed to read service account file:", fileError.message);
+
+            // Fallback to environment variables
+            if (process.env.FIREBASE_PRIVATE_KEY) {
+                console.log("Falling back to environment variables");
+                admin.initializeApp({
+                    credential: admin.credential.cert({
+                        projectId: process.env.FIREBASE_PROJECT_ID,
+                        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+                    })
+                });
+                console.log("Firebase initialized with environment variables");
+            } else {
+                throw new Error("No valid Firebase configuration found");
+            }
         }
     } else {
         console.log("Firebase already initialized (apps exists)");
