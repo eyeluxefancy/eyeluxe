@@ -10,7 +10,7 @@ import './App.css';
 
 function App() {
   return (
-    <Router>
+    <Router basename="/eyeluxe">
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
