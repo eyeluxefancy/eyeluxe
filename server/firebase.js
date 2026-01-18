@@ -2,6 +2,7 @@ import admin from 'firebase-admin';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -27,13 +28,12 @@ try {
 
         // Try to initialize with file
         try {
-            const fs = await import('fs');
             if (fs.existsSync(serviceAccountPath)) {
                 const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
                 admin.initializeApp({
                     credential: admin.credential.cert(serviceAccount)
                 });
-                console.log("Firebase initialized with service account file");
+                console.log("✅ Firebase initialized successfully with service account file");
             } else {
                 throw new Error(`Service account file not found at: ${serviceAccountPath}`);
             }
