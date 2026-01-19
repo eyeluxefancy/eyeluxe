@@ -20,8 +20,9 @@ router.post('/', async (req, res) => {
     const transaction = db.runTransaction(async (t) => {
         const billData = req.body;
         const { items } = billData;
+        const productUpdates = [];
 
-        // 1. Check stock and prepare updates
+        // 1. ALL READS FIRST: Fetch all products and check stock
         for (const item of items) {
             if (item.type === 'product') {
                 const productRef = db.collection('products').doc(item.id);
@@ -31,22 +32,29 @@ router.post('/', async (req, res) => {
                     throw new Error(`Product ${item.name} not found`);
                 }
 
-                const currentStock = productDoc.data().stock || 0;
+                const currentStock = Number(productDoc.data().stock) || 0;
                 if (currentStock < item.quantity) {
                     throw new Error(`Insufficient stock for ${item.name}`);
                 }
 
-                t.update(productRef, { stock: currentStock - item.quantity });
+                productUpdates.push({
+                    ref: productRef,
+                    newStock: currentStock - item.quantity
+                });
             }
         }
 
-        // 2. Generate Invoice Number (Simple unique number for now)
+        // 2. ADDITIONAL READ: Generate Invoice Number
         const countSnapshot = await db.collection(collection).count().get();
         const invoiceNo = `INV-${String(countSnapshot.data().count + 1).padStart(5, '0')}`;
         billData.invoiceNo = invoiceNo;
         billData.date = billData.date || new Date().toISOString();
 
-        // 3. Save Bill
+        // 3. ALL WRITES AFTER: Perform stock updates and save bill
+        for (const update of productUpdates) {
+            t.update(update.ref, { stock: update.newStock });
+        }
+
         const billRef = db.collection(collection).doc();
         t.set(billRef, billData);
 
