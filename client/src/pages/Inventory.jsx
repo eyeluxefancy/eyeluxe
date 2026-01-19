@@ -9,6 +9,7 @@ export default function Inventory() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
         purchasePrice: '',
@@ -62,16 +63,51 @@ export default function Inventory() {
         document.body.removeChild(a);
     };
 
+    const handleEdit = (product) => {
+        setEditingId(product.id);
+        setFormData({
+            name: product.name,
+            purchasePrice: product.purchasePrice,
+            mrp: product.mrp,
+            sellingPrice: product.sellingPrice,
+            stock: product.stock,
+            expiryDate: product.expiryDate || ''
+        });
+        setShowModal(true);
+    };
+
+    const handleDelete = async (id) => {
+        if (window.confirm('Are you sure you want to delete this product?')) {
+            try {
+                await axios.delete(`${API_URL}/products/${id}`);
+                fetchProducts();
+            } catch (err) {
+                console.error(err);
+                alert('Failed to delete product');
+            }
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post(`${API_URL}/products`, formData);
-            setShowModal(false);
-            setFormData({ name: '', purchasePrice: '', mrp: '', sellingPrice: '', stock: '', expiryDate: '' });
+            if (editingId) {
+                await axios.put(`${API_URL}/products/${editingId}`, formData);
+            } else {
+                await axios.post(`${API_URL}/products`, formData);
+            }
+            closeModal();
             fetchProducts();
         } catch (err) {
             console.error(err);
+            alert('Failed to save product');
         }
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingId(null);
+        setFormData({ name: '', purchasePrice: '', mrp: '', sellingPrice: '', stock: '', expiryDate: '' });
     };
 
     return (
@@ -147,10 +183,16 @@ export default function Inventory() {
                                     </td>
                                     <td className="px-3 lg:px-6 py-3 lg:py-4 text-right">
                                         <div className="flex justify-end gap-1 lg:gap-2">
-                                            <button className="p-1.5 lg:p-2 bg-slate-50 hover:bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-primary-600 transition-all">
+                                            <button
+                                                onClick={() => handleEdit(product)}
+                                                className="p-1.5 lg:p-2 bg-slate-50 hover:bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-primary-600 transition-all"
+                                            >
                                                 <Edit2 className="w-3.5 h-3.5  lg:w-4 lg:h-4" />
                                             </button>
-                                            <button className="p-1.5 lg:p-2 bg-slate-50 hover:bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-rose-600 transition-all">
+                                            <button
+                                                onClick={() => handleDelete(product.id)}
+                                                className="p-1.5 lg:p-2 bg-slate-50 hover:bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-rose-600 transition-all"
+                                            >
                                                 <Trash2 className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                                             </button>
                                         </div>
@@ -168,10 +210,14 @@ export default function Inventory() {
                         {/* Header */}
                         <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                             <div>
-                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Add New Product</h3>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Register a new item to your stock</p>
+                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                                    {editingId ? 'Edit Product' : 'Add New Product'}
+                                </h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                    {editingId ? 'Update product details' : 'Register a new item to your stock'}
+                                </p>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
+                            <button onClick={closeModal} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
                                 <Plus className="w-6 h-6 rotate-45" />
                             </button>
                         </div>
@@ -249,8 +295,10 @@ export default function Inventory() {
 
                             {/* Footer */}
                             <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/50 flex gap-4 shrink-0">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-[1.25rem] text-xs font-black uppercase tracking-widest hover:bg-slate-50 active:scale-[0.98] transition-all">Cancel</button>
-                                <button type="submit" className="flex-1 px-8 py-4 bg-primary-600 text-white rounded-[1.25rem] text-xs font-black uppercase tracking-widest shadow-xl shadow-primary-200 hover:bg-primary-700 active:scale-[0.98] transition-all">Save Product</button>
+                                <button type="button" onClick={closeModal} className="flex-1 px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-[1.25rem] text-xs font-black uppercase tracking-widest hover:bg-slate-50 active:scale-[0.98] transition-all">Cancel</button>
+                                <button type="submit" className="flex-1 px-8 py-4 bg-primary-600 text-white rounded-[1.25rem] text-xs font-black uppercase tracking-widest shadow-xl shadow-primary-200 hover:bg-primary-700 active:scale-[0.98] transition-all">
+                                    {editingId ? 'Update Product' : 'Save Product'}
+                                </button>
                             </div>
                         </form>
                     </div>
