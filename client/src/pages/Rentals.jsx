@@ -12,6 +12,7 @@ export default function Rentals() {
     const [showModal, setShowModal] = useState(false);
     const [showPrint, setShowPrint] = useState(null);
     const [activeTab, setActiveTab] = useState('Rented');
+    const [editingId, setEditingId] = useState(null);
     const [dateFilter, setDateFilter] = useState('');
     const [formData, setFormData] = useState({
         ornamentName: '',
@@ -72,31 +73,70 @@ export default function Rentals() {
         fetchRentals();
     }, []);
 
+    const handleEdit = (rental) => {
+        setEditingId(rental.id);
+        setFormData({
+            ornamentName: rental.ornamentName || '',
+            dailyPrice: rental.dailyPrice || '',
+            advanceAmount: rental.advanceAmount || '',
+            customerName: rental.customerName || '',
+            customerPhone: rental.customerPhone || '',
+            startDate: rental.startDate ? rental.startDate.split('T')[0] : '',
+            expectedReturnDate: rental.expectedReturnDate ? rental.expectedReturnDate.split('T')[0] : ''
+        });
+        setShowModal(true);
+    };
+
+    const handleDelete = async (rental) => {
+        if (!window.confirm('Are you sure you want to delete this rental?')) return;
+        try {
+            await axios.delete(`${API_URL}/rentals/${rental.id}`);
+            fetchRentals();
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete rental');
+        }
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingId(null);
+        setFormData({ ornamentName: '', dailyPrice: '', advanceAmount: '', customerName: '', customerPhone: '', startDate: new Date().toISOString().split('T')[0], expectedReturnDate: '' });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         const totalPrice = calculateTotal();
         try {
-            const res = await axios.post(`${API_URL}/rentals`, {
-                ...formData,
-                rentalPrice: totalPrice
-            });
-            const newRental = res.data;
-            setShowModal(false);
-            setShowPrint({
-                invoiceNo: newRental.id.slice(-6).toUpperCase(),
-                date: new Date().toISOString(),
-                customerInfo: { name: formData.customerName, phone: formData.customerPhone },
-                cartItems: [{
-                    name: `${formData.ornamentName} (${Math.round(Math.abs(new Date(formData.expectedReturnDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) || 1} Days)`,
-                    quantity: 1,
+            if (editingId) {
+                await axios.put(`${API_URL}/rentals/${editingId}`, {
+                    ...formData,
                     rentalPrice: totalPrice
-                }],
-                total: totalPrice
-            });
-            setFormData({ ornamentName: '', dailyPrice: '', advanceAmount: '', customerName: '', customerPhone: '', startDate: '', expectedReturnDate: '' });
+                });
+                closeModal();
+            } else {
+                const res = await axios.post(`${API_URL}/rentals`, {
+                    ...formData,
+                    rentalPrice: totalPrice
+                });
+                const newRental = res.data;
+                closeModal();
+                setShowPrint({
+                    invoiceNo: newRental.id.slice(-6).toUpperCase(),
+                    date: new Date().toISOString(),
+                    customerInfo: { name: formData.customerName, phone: formData.customerPhone },
+                    cartItems: [{
+                        name: `${formData.ornamentName} (${Math.round(Math.abs(new Date(formData.expectedReturnDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) || 1} Days)`,
+                        quantity: 1,
+                        rentalPrice: totalPrice
+                    }],
+                    total: totalPrice
+                });
+            }
             fetchRentals();
         } catch (err) {
             console.error(err);
+            alert('Failed to save rental');
         }
     };
 
@@ -174,7 +214,10 @@ export default function Rentals() {
                         <Download className="w-4 h-4 lg:w-5 lg:h-5" /> <span className="hidden lg:inline">Export {activeTab}</span><span className="lg:hidden">Export</span>
                     </button>
                     <button
-                        onClick={() => setShowModal(true)}
+                        onClick={() => {
+                            closeModal();
+                            setShowModal(true);
+                        }}
                         className="flex-1 sm:flex-initial btn-primary flex items-center justify-center gap-2 px-4 lg:px-8 py-3 lg:py-4 rounded-xl lg:rounded-2xl shadow-xl shadow-primary-200 text-[9px] lg:text-[10px] font-black uppercase tracking-widest"
                     >
                         <Plus className="w-4 h-4 lg:w-5 lg:h-5" /> <span>New Rental</span>
@@ -278,6 +321,20 @@ export default function Rentals() {
                                     <td className="px-8 py-6 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <button
+                                                onClick={() => handleEdit(rental)}
+                                                className="p-2.5 bg-slate-100 text-slate-500 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all"
+                                                title="Edit Rental"
+                                            >
+                                                <Edit2 className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(rental)}
+                                                className="p-2.5 bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all"
+                                                title="Delete Rental"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                            <button
                                                 onClick={() => setShowPrint({
                                                     invoiceNo: rental.id.slice(-6).toUpperCase(),
                                                     date: rental.startDate,
@@ -320,11 +377,15 @@ export default function Rentals() {
                             {/* Modal Header */}
                             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                                 <div>
-                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">New Rental Entry</h3>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Fill in the details to create a new transaction</p>
+                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                                        {editingId ? 'Edit Rental' : 'New Rental Entry'}
+                                    </h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                        {editingId ? 'Update existing rental details' : 'Fill in the details to create a new transaction'}
+                                    </p>
                                 </div>
                                 <button
-                                    onClick={() => setShowModal(false)}
+                                    onClick={closeModal}
                                     className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all duration-200"
                                 >
                                     <X className="w-6 h-6" />
@@ -436,7 +497,7 @@ export default function Rentals() {
                                 <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/50 flex gap-4 shrink-0">
                                     <button
                                         type="button"
-                                        onClick={() => setShowModal(false)}
+                                        onClick={closeModal}
                                         className="flex-1 px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-[1.25rem] text-xs font-black uppercase tracking-widest hover:bg-slate-50 active:scale-[0.98] transition-all"
                                     >
                                         Cancel
@@ -445,7 +506,7 @@ export default function Rentals() {
                                         type="submit"
                                         className="flex-1 px-8 py-4 bg-primary-600 text-white rounded-[1.25rem] text-xs font-black uppercase tracking-widest shadow-xl shadow-primary-200 hover:bg-primary-700 hover:shadow-primary-300 active:scale-[0.98] transition-all"
                                     >
-                                        Confirm Rental
+                                        {editingId ? 'Update Rental' : 'Confirm Rental'}
                                     </button>
                                 </div>
                             </form>

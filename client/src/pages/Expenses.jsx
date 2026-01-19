@@ -10,6 +10,7 @@ export default function Expenses() {
     const [searchTerm, setSearchTerm] = useState('');
     const [expenses, setExpenses] = useState([]);
     const [showModal, setShowModal] = useState(false);
+    const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({ category: 'Others', amount: '', date: '', notes: '' });
 
     const fetchExpenses = async () => {
@@ -53,25 +54,47 @@ export default function Expenses() {
         expense.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handleEdit = (expense) => {
+        setEditingId(expense.id);
+        setFormData({
+            category: expense.category,
+            amount: expense.amount,
+            date: expense.date ? new Date(expense.date).toISOString().split('T')[0] : '',
+            notes: expense.notes || ''
+        });
+        setShowModal(true);
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingId(null);
+        setFormData({ category: 'Others', amount: '', date: '', notes: '' });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            await axios.post(`${API_URL}/expenses`, formData);
-            setShowModal(false);
-            setFormData({ category: 'Others', amount: '', date: '', notes: '' });
+            if (editingId) {
+                await axios.put(`${API_URL}/expenses/${editingId}`, formData);
+            } else {
+                await axios.post(`${API_URL}/expenses`, formData);
+            }
+            closeModal();
             fetchExpenses();
         } catch (err) {
             console.error(err);
+            alert('Failed to save expense');
         }
     };
 
     const deleteExpense = async (id) => {
-        if (!confirm("Delete this expense?")) return;
+        if (!window.confirm("Are you sure you want to delete this expense?")) return;
         try {
             await axios.delete(`${API_URL}/expenses/${id}`);
             fetchExpenses();
         } catch (err) {
             console.error(err);
+            alert('Failed to delete expense');
         }
     };
 
@@ -127,9 +150,20 @@ export default function Expenses() {
                                 <td className="px-6 py-4 text-sm text-slate-500">{expense.notes || '-'}</td>
                                 <td className="px-6 py-4 font-bold text-rose-500">₹{expense.amount}</td>
                                 <td className="px-6 py-4 text-right">
-                                    <button onClick={() => deleteExpense(expense.id)} className="text-slate-300 hover:text-rose-500 transition-colors">
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex justify-end gap-2">
+                                        <button
+                                            onClick={() => handleEdit(expense)}
+                                            className="text-slate-300 hover:text-primary-600 transition-colors"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => deleteExpense(expense.id)}
+                                            className="text-slate-300 hover:text-rose-500 transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -143,10 +177,14 @@ export default function Expenses() {
                         {/* Header */}
                         <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                             <div>
-                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Log New Expense</h3>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Record a new business expenditure</p>
+                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                                    {editingId ? 'Edit Expense' : 'Log New Expense'}
+                                </h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                    {editingId ? 'Update business expenditure details' : 'Record a new business expenditure'}
+                                </p>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
+                            <button onClick={closeModal} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
                                 <Plus className="w-6 h-6 rotate-45" />
                             </button>
                         </div>
@@ -200,8 +238,10 @@ export default function Expenses() {
 
                             {/* Footer */}
                             <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/50 flex gap-4 shrink-0">
-                                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-[1.25rem] text-xs font-black uppercase tracking-widest hover:bg-slate-50 active:scale-[0.98] transition-all">Cancel</button>
-                                <button type="submit" className="flex-1 px-8 py-4 bg-primary-600 text-white rounded-[1.25rem] text-xs font-black uppercase tracking-widest shadow-xl shadow-primary-200 hover:bg-primary-700 active:scale-[0.98] transition-all">Save Expense</button>
+                                <button type="button" onClick={closeModal} className="flex-1 px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-[1.25rem] text-xs font-black uppercase tracking-widest hover:bg-slate-50 active:scale-[0.98] transition-all">Cancel</button>
+                                <button type="submit" className="flex-1 px-8 py-4 bg-primary-600 text-white rounded-[1.25rem] text-xs font-black uppercase tracking-widest shadow-xl shadow-primary-200 hover:bg-primary-700 active:scale-[0.98] transition-all">
+                                    {editingId ? 'Update Expense' : 'Save Expense'}
+                                </button>
                             </div>
                         </form>
                     </div>
