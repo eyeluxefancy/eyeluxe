@@ -12,6 +12,16 @@ export default function Billing() {
     const [customer, setCustomer] = useState({ name: '', phone: '' });
     const [loading, setLoading] = useState(false);
     const [showPrint, setShowPrint] = useState(null);
+    const [bills, setBills] = useState([]);
+
+    const fetchBills = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/billing`);
+            setBills(res.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     useEffect(() => {
         const fetchProducts = async () => {
@@ -19,6 +29,7 @@ export default function Billing() {
             setProducts(res.data);
         };
         fetchProducts();
+        fetchBills();
     }, []);
 
     const filteredProducts = products.filter(product =>
@@ -59,10 +70,22 @@ export default function Billing() {
             setShowPrint({ ...res.data, customerInfo: customer, cartItems: cart });
             setCart([]);
             setCustomer({ name: '', phone: '' });
+            fetchBills();
         } catch (err) {
             alert(err.response?.data?.error || "Billing failed");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const deleteBill = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this bill record?")) return;
+        try {
+            await axios.delete(`${API_URL}/billing/${id}`);
+            fetchBills();
+        } catch (err) {
+            console.error(err);
+            alert("Failed to delete bill");
         }
     };
 
@@ -179,6 +202,75 @@ export default function Billing() {
                                 {loading ? "Processing..." : <><Printer className="w-5 h-5" /> Generate & Print Bill</>}
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                {/* Billing History Section */}
+                <div className="lg:col-span-3 mt-12 bg-white rounded-2xl lg:rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="px-8 py-6 border-b border-slate-100 bg-white">
+                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Recent Invoices</h3>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">History of all generated bills</p>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                                    <th className="px-8 py-5">Invoice No</th>
+                                    <th className="px-6 py-5">Date</th>
+                                    <th className="px-6 py-5">Customer</th>
+                                    <th className="px-6 py-5 text-right">Total</th>
+                                    <th className="px-8 py-5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {bills.map(bill => (
+                                    <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="px-8 py-4">
+                                            <span className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase shadow-sm">
+                                                {bill.invoiceNo || 'N/A'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs font-bold text-slate-500">
+                                            {new Date(bill.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-slate-700 underline decoration-primary-200 decoration-2 underline-offset-4">{bill.customerName}</span>
+                                                <span className="text-[10px] text-slate-400 font-bold tracking-tight mt-0.5">{bill.customerPhone}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 font-black text-primary-600 text-base text-right font-mono italic">₹{bill.total?.toLocaleString()}</td>
+                                        <td className="px-8 py-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => setShowPrint({ ...bill, customerInfo: { name: bill.customerName, phone: bill.customerPhone }, cartItems: bill.items })}
+                                                    className="p-2.5 bg-slate-50 text-slate-500 hover:bg-primary-50 hover:text-primary-600 rounded-xl border border-slate-100 transition-all active:scale-95"
+                                                    title="Reprint Invoice"
+                                                >
+                                                    <Printer className="w-4 h-4 lg:w-5 lg:h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteBill(bill.id)}
+                                                    className="p-2.5 bg-slate-50 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl border border-slate-100 transition-all active:scale-95"
+                                                    title="Delete Record"
+                                                >
+                                                    <Trash2 className="w-4 h-4 lg:w-5 lg:h-5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {bills.length === 0 && (
+                            <div className="p-20 text-center">
+                                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                                    <ShoppingCart className="w-8 h-8 text-slate-200" />
+                                </div>
+                                <h3 className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No invoice history found</h3>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {showPrint && (

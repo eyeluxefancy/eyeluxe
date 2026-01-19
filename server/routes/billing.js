@@ -69,4 +69,15 @@ router.post('/', async (req, res) => {
     }
 });
 
+// Delete a bill
+router.delete('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.collection(collection).doc(id).delete();
+        res.json({ message: 'Bill deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;
