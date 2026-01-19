@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Wallet, Plus, Trash2, Filter, Search, Download } from 'lucide-react';
+import { Wallet, Plus, Edit2, Trash2, Filter, Search, Download } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 

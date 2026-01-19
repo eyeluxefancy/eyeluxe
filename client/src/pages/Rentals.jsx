@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Plus, Calendar, User, Phone, CheckCircle2, AlertCircle, Printer, X, Download } from 'lucide-react';
+import { Search, Plus, Calendar, User, Phone, CheckCircle2, AlertCircle, Printer, X, Download, Edit2, Trash2 } from 'lucide-react';
 import PrintInvoice from '../components/PrintInvoice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
