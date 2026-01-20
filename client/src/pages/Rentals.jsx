@@ -20,17 +20,22 @@ export default function Rentals() {
         advanceAmount: '',
         customerName: '',
         customerPhone: '',
-        startDate: '',
-        expectedReturnDate: ''
+        startDate: new Date().toISOString().split('T')[0],
+        expectedReturnDate: '',
+        extraDiscount: 0
     });
 
-    const calculateTotal = () => {
+    const calculateSubtotal = () => {
         if (!formData.startDate || !formData.expectedReturnDate || !formData.dailyPrice) return 0;
         const start = new Date(formData.startDate);
         const end = new Date(formData.expectedReturnDate);
         const diffTime = Math.abs(end - start);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; // Minimum 1 day
         return diffDays * parseFloat(formData.dailyPrice);
+    };
+
+    const calculateTotal = () => {
+        return calculateSubtotal() - (parseFloat(formData.extraDiscount) || 0);
     };
 
     const fetchRentals = async () => {
@@ -43,7 +48,7 @@ export default function Rentals() {
     };
 
     const exportToCSV = () => {
-        const headers = ['ID', 'Ornament', 'Customer Name', 'Phone', 'Price', 'Advance', 'Status', 'Due Date'];
+        const headers = ['ID', 'Ornament', 'Customer Name', 'Phone', 'Price', 'Advance', 'Extra Discount', 'Status', 'Due Date'];
         const csvRows = [
             headers.join(','),
             ...filteredRentals.map(r => [
@@ -53,6 +58,7 @@ export default function Rentals() {
                 r.customerPhone,
                 r.rentalPrice,
                 r.advanceAmount || 0,
+                r.extraDiscount || 0,
                 r.status,
                 new Date(r.expectedReturnDate).toLocaleDateString('en-GB')
             ].join(','))
@@ -82,7 +88,8 @@ export default function Rentals() {
             customerName: rental.customerName || '',
             customerPhone: rental.customerPhone || '',
             startDate: rental.startDate ? rental.startDate.split('T')[0] : '',
-            expectedReturnDate: rental.expectedReturnDate ? rental.expectedReturnDate.split('T')[0] : ''
+            expectedReturnDate: rental.expectedReturnDate ? rental.expectedReturnDate.split('T')[0] : '',
+            extraDiscount: rental.extraDiscount || 0
         });
         setShowModal(true);
     };
@@ -101,7 +108,7 @@ export default function Rentals() {
     const closeModal = () => {
         setShowModal(false);
         setEditingId(null);
-        setFormData({ ornamentName: '', dailyPrice: '', advanceAmount: '', customerName: '', customerPhone: '', startDate: new Date().toISOString().split('T')[0], expectedReturnDate: '' });
+        setFormData({ ornamentName: '', dailyPrice: '', advanceAmount: '', customerName: '', customerPhone: '', startDate: new Date().toISOString().split('T')[0], expectedReturnDate: '', extraDiscount: 0 });
     };
 
     const handleSubmit = async (e) => {
@@ -117,7 +124,8 @@ export default function Rentals() {
             } else {
                 const res = await axios.post(`${API_URL}/rentals`, {
                     ...formData,
-                    rentalPrice: totalPrice
+                    rentalPrice: totalPrice,
+                    extraDiscount: parseFloat(formData.extraDiscount) || 0
                 });
                 const newRental = res.data;
                 closeModal();
@@ -130,7 +138,8 @@ export default function Rentals() {
                         quantity: 1,
                         rentalPrice: totalPrice
                     }],
-                    total: totalPrice
+                    total: totalPrice,
+                    extraDiscount: parseFloat(formData.extraDiscount) || 0
                 });
             }
             fetchRentals();
@@ -161,7 +170,8 @@ export default function Rentals() {
                     { name: `${rental.ornamentName} (Full Price)`, quantity: 1, rentalPrice: rental.rentalPrice },
                     { name: `Advance Paid (Receipt Ref: #${rental.id.slice(-6).toUpperCase()})`, quantity: 1, rentalPrice: -(rental.advanceAmount || 0) }
                 ],
-                total: rental.rentalPrice - (rental.advanceAmount || 0)
+                total: rental.rentalPrice - (rental.advanceAmount || 0),
+                extraDiscount: rental.extraDiscount || 0
             });
 
             fetchRentals();
@@ -340,7 +350,8 @@ export default function Rentals() {
                                                     date: rental.startDate,
                                                     customerInfo: { name: rental.customerName, phone: rental.customerPhone },
                                                     cartItems: [{ name: rental.ornamentName, quantity: 1, rentalPrice: rental.rentalPrice }],
-                                                    total: rental.rentalPrice
+                                                    total: rental.rentalPrice,
+                                                    extraDiscount: rental.extraDiscount || 0
                                                 })}
                                                 className="p-2.5 bg-slate-100 text-slate-500 hover:bg-primary-50 hover:text-primary-600 rounded-xl transition-all"
                                                 title="View Bill"
@@ -478,16 +489,41 @@ export default function Rentals() {
                                             />
                                         </div>
 
+                                        <div className="col-span-2 group">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-primary-500 transition-colors">Extra Discount (₹)</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0"
+                                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-sm font-bold focus:bg-white focus:ring-4 focus:ring-primary-50 focus:border-primary-200 transition-all outline-none"
+                                                value={formData.extraDiscount}
+                                                onChange={(e) => setFormData({ ...formData, extraDiscount: e.target.value })}
+                                            />
+                                        </div>
+
                                         {/* Summary Card */}
-                                        <div className="col-span-2 p-6 bg-slate-900 rounded-[1.5rem] flex justify-between items-center shadow-lg shadow-slate-200 mt-4 relative overflow-hidden group">
+                                        <div className="col-span-2 p-6 bg-slate-900 rounded-[1.5rem] space-y-4 shadow-lg shadow-slate-200 mt-4 relative overflow-hidden group">
                                             <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-primary-500/20 transition-all duration-500"></div>
-                                            <div className="relative z-10">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Estimated Total</p>
-                                                <p className="text-3xl font-black text-white italic">₹{calculateTotal()?.toLocaleString()}</p>
+
+                                            <div className="relative z-10 flex justify-between items-center border-b border-white/5 pb-4">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Subtotal</p>
+                                                    <p className="text-xl font-black text-slate-300">₹{calculateSubtotal()?.toLocaleString()}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-black text-primary-400 uppercase tracking-[0.2em] mb-1">Discount</p>
+                                                    <p className="text-xl font-black text-primary-500">-₹{(parseFloat(formData.extraDiscount) || 0).toLocaleString()}</p>
+                                                </div>
                                             </div>
-                                            <div className="text-right relative z-10">
-                                                <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest mb-1">Due on Return</p>
-                                                <p className="text-xl font-black text-primary-500">₹{(calculateTotal() - (formData.advanceAmount || 0))?.toLocaleString()}</p>
+
+                                            <div className="relative z-10 flex justify-between items-center">
+                                                <div>
+                                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Amount</p>
+                                                    <p className="text-3xl font-black text-white italic">₹{calculateTotal()?.toLocaleString()}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest mb-1">Due on Return</p>
+                                                    <p className="text-xl font-black text-primary-500">₹{(calculateTotal() - (formData.advanceAmount || 0))?.toLocaleString()}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

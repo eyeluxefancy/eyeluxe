@@ -12,6 +12,7 @@ export default function Billing() {
     const [customer, setCustomer] = useState({ name: '', phone: '' });
     const [loading, setLoading] = useState(false);
     const [showPrint, setShowPrint] = useState(null);
+    const [extraDiscount, setExtraDiscount] = useState(0);
     const [bills, setBills] = useState([]);
 
     const fetchBills = async () => {
@@ -51,8 +52,12 @@ export default function Billing() {
         setCart(cart.filter(item => item.id !== id));
     };
 
-    const calculateTotal = () => {
+    const calculateSubtotal = () => {
         return cart.reduce((acc, item) => acc + (item.sellingPrice * item.quantity), 0);
+    };
+
+    const calculateTotal = () => {
+        return calculateSubtotal() - (parseFloat(extraDiscount) || 0);
     };
 
     const handleSubmit = async () => {
@@ -64,12 +69,15 @@ export default function Billing() {
                 customerName: customer.name,
                 customerPhone: customer.phone,
                 items: cart,
+                subtotal: calculateSubtotal(),
+                extraDiscount: parseFloat(extraDiscount) || 0,
                 total: calculateTotal(),
                 date: new Date().toISOString()
             });
             setShowPrint({ ...res.data, customerInfo: customer, cartItems: cart });
             setCart([]);
             setCustomer({ name: '', phone: '' });
+            setExtraDiscount(0);
             fetchBills();
         } catch (err) {
             alert(err.response?.data?.error || "Billing failed");
@@ -190,6 +198,21 @@ export default function Billing() {
                         </div>
 
                         <div className="mt-8 pt-6 border-t border-slate-800 space-y-4">
+                            <div className="flex justify-between items-center px-3">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Subtotal</span>
+                                <span className="text-sm font-bold text-slate-300">₹{calculateSubtotal()}</span>
+                            </div>
+                            <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Extra Discount (₹)</span>
+                                <input
+                                    type="number"
+                                    className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 text-sm font-bold text-right text-primary-400 outline-none"
+                                    value={extraDiscount}
+                                    onChange={(e) => setExtraDiscount(e.target.value)}
+                                    placeholder="0"
+                                    min="0"
+                                />
+                            </div>
                             <div className="flex justify-between text-lg">
                                 <span className="font-semibold text-slate-400">Grand Total</span>
                                 <span className="font-black text-2xl text-primary-400">₹{calculateTotal()}</span>
