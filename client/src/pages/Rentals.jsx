@@ -136,7 +136,7 @@ export default function Rentals() {
                     cartItems: [{
                         name: `${formData.ornamentName} (${Math.round(Math.abs(new Date(formData.expectedReturnDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) || 1} Days)`,
                         quantity: 1,
-                        rentalPrice: totalPrice
+                        rentalPrice: calculateSubtotal()
                     }],
                     total: totalPrice,
                     extraDiscount: parseFloat(formData.extraDiscount) || 0
@@ -161,17 +161,25 @@ export default function Rentals() {
 
             // Generate Settlement Bill
             setShowPrint({
-                invoiceNo: rental.id.slice(-6).toUpperCase(),
+                invoiceNo: (rental.id || '').slice(-6).toUpperCase(),
                 date: new Date().toISOString(),
                 title: 'SETTLEMENT BILL',
                 type: 'Rental Return',
                 customerInfo: { name: rental.customerName, phone: rental.customerPhone },
                 cartItems: [
-                    { name: `${rental.ornamentName} (Full Price)`, quantity: 1, rentalPrice: rental.rentalPrice },
-                    { name: `Advance Paid (Receipt Ref: #${rental.id.slice(-6).toUpperCase()})`, quantity: 1, rentalPrice: -(rental.advanceAmount || 0) }
+                    {
+                        name: `${rental.ornamentName} (Base Price)`,
+                        quantity: 1,
+                        rentalPrice: parseFloat(rental.rentalPrice || 0) + parseFloat(rental.extraDiscount || 0)
+                    },
+                    {
+                        name: `Advance Paid (Receipt Ref: #${(rental.id || '').slice(-6).toUpperCase()})`,
+                        quantity: 1,
+                        rentalPrice: -(parseFloat(rental.advanceAmount) || 0)
+                    }
                 ],
-                total: rental.rentalPrice - (rental.advanceAmount || 0),
-                extraDiscount: rental.extraDiscount || 0
+                total: parseFloat(rental.rentalPrice) - (parseFloat(rental.advanceAmount) || 0),
+                extraDiscount: parseFloat(rental.extraDiscount) || 0
             });
 
             fetchRentals();
@@ -346,10 +354,14 @@ export default function Rentals() {
                                             </button>
                                             <button
                                                 onClick={() => setShowPrint({
-                                                    invoiceNo: rental.id.slice(-6).toUpperCase(),
+                                                    invoiceNo: (rental.id || '').slice(-6).toUpperCase(),
                                                     date: rental.startDate,
                                                     customerInfo: { name: rental.customerName, phone: rental.customerPhone },
-                                                    cartItems: [{ name: rental.ornamentName, quantity: 1, rentalPrice: rental.rentalPrice }],
+                                                    cartItems: [{
+                                                        name: rental.ornamentName,
+                                                        quantity: 1,
+                                                        rentalPrice: parseFloat(rental.rentalPrice || 0) + parseFloat(rental.extraDiscount || 0)
+                                                    }],
                                                     total: rental.rentalPrice,
                                                     extraDiscount: rental.extraDiscount || 0
                                                 })}

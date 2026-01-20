@@ -82,9 +82,9 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
                                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-60">
                                     <span>Subtotal</span>
-                                    <span>₹{(parseFloat(total) + (bill?.extraDiscount || 0)).toLocaleString()}</span>
+                                    <span>₹{(parseFloat(total) + parseFloat(bill?.extraDiscount || 0)).toLocaleString()}</span>
                                 </div>
-                                {bill?.extraDiscount > 0 && (
+                                {parseFloat(bill?.extraDiscount || 0) > 0 && (
                                     <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-primary-400">
                                         <span>Extra Discount</span>
                                         <span>-₹{parseFloat(bill.extraDiscount).toLocaleString()}</span>
