@@ -122,71 +122,84 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
         
         @media print {
           @page { 
-            margin: 0; 
+            margin: 0mm; 
             size: auto; 
           }
           
-          /* Hide EVERYTHING first */
-          body * {
-            visibility: hidden !important;
-            transition: none !important;
-            animation: none !important;
+          /* RESET everything for print */
+          body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            width: 100%;
           }
 
-          /* Show ONLY the print container and its children */
-          #print-container, 
-          #print-container *,
-          .print-section,
-          .print-section * {
-            visibility: visible !important;
-            opacity: 1 !important;
+          /* Hide ALL page elements except our receipt */
+          body > #root, 
+          header, 
+          aside, 
+          nav, 
+          button:not(.print-only) {
+            display: none !important;
           }
 
+          /* Force the print container to sit at the top and be visible */
           #print-container {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
-            height: auto !important;
             display: block !important;
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
-            z-index: 9999 !important;
+            z-index: 1000 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
             transform: none !important;
+            animation: none !important;
           }
 
-          .print:hidden, .print-hidden {
-            display: none !important;
-          }
-
-          .print-section {
+          /* The inner white box should now fill page */
+          #print-container > div {
             width: 100% !important;
-            max-width: 380px !important;
+            max-width: 380px !important; /* Proper receipt width */
             margin: 0 auto !important;
-            padding: 0 !important;
-            background: white !important;
-          }
-
-          /* Force colors for thermal/small printers */
-          * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
-
-          /* Remove all possible scroll containers for print */
-          .custom-scrollbar, .overflow-y-auto {
-            overflow: visible !important;
-            height: auto !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
             max-height: none !important;
+            overflow: visible !important;
+            transform: none !important;
+            animation: none !important;
+            opacity: 1 !important;
+            visibility: visible !important;
           }
 
-          /* Ensure body doesn't clip content */
-          html, body {
-            height: auto !important;
+          /* Ensure all content inside is visible */
+          .print-section, .print-section * {
+            visibility: visible !important;
+            opacity: 1 !important;
+            display: block !important;
+          }
+
+          /* Tables need special care for display block */
+          table.print-section, table {
+            display: table !important;
+          }
+          tr { display: table-row !important; }
+          td, th { display: table-cell !important; }
+
+          /* Small printer optimizations */
+          .print-section {
+            padding: 0 !important;
+            border: none !important;
+          }
+          
+          .overflow-y-auto {
             overflow: visible !important;
-            background: white !important;
+            max-height: none !important;
           }
         }
       `}</style>
