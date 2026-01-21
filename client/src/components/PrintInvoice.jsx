@@ -6,68 +6,68 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
     };
 
     return (
-        <div className="fixed inset-0 z-[101] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
+        <div id="print-container" className="fixed inset-0 z-[101] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 flex flex-col max-h-[90vh] print:max-h-none print:shadow-none print:w-full print:max-w-none print:rounded-none">
 
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto print:overflow-visible custom-scrollbar">
-                    <div className="print-section">
-                        <div className="p-10 border-b-2 border-slate-100 flex justify-between items-center bg-white">
+                    <div className="print-section bg-white">
+                        <div className="p-6 md:p-10 border-b-2 border-slate-100 flex justify-between items-center bg-white print:p-4 print:border-b">
                             <div className="flex items-center">
-                                <div className="w-56 h-56 overflow-hidden flex items-center justify-center">
+                                <div className="w-32 h-32 md:w-56 md:h-56 overflow-hidden flex items-center justify-center print:w-24 print:h-24">
                                     <img src={logo} alt="EYELUXE Logo" className="w-full scale-[2.2] object-contain mix-blend-multiply translate-y-[12%] translate-x-[-5%]" />
                                 </div>
-                                <div className="flex flex-col -ml-12">
-                                    <h1 className="text-6xl font-black text-slate-900 tracking-tighter leading-none mb-2">EYELUXE</h1>
-                                    <p className="text-base text-primary-600 font-bold tracking-[0.3em] uppercase leading-none">Cosmetics & Bridal Fancy</p>
+                                <div className="flex flex-col -ml-6 md:-ml-12 print:-ml-4">
+                                    <h1 className="text-3xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none mb-1 md:mb-2 print:text-3xl">EYELUXE</h1>
+                                    <p className="text-[8px] md:text-base text-primary-600 font-bold tracking-[0.2em] md:tracking-[0.3em] uppercase leading-none print:text-[8px]">Cosmetics & Bridal Fancy</p>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <h2 className="text-xl font-black text-slate-900 tracking-tight">{bill?.title || 'INVOICE'}</h2>
-                                <div className="mt-2">
-                                    <p className="text-sm text-slate-500 font-bold tracking-tight">#{bill?.invoiceNo || 'DRAFT'}</p>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">{new Date(bill?.date || new Date()).toLocaleDateString('en-GB')}</p>
+                                <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight print:text-base">{bill?.title || 'INVOICE'}</h2>
+                                <div className="mt-1 md:mt-2">
+                                    <p className="text-xs md:text-sm text-slate-500 font-bold tracking-tight print:text-[10px]">#{bill?.invoiceNo || 'DRAFT'}</p>
+                                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none print:text-[7px]">{new Date(bill?.date || new Date()).toLocaleDateString('en-GB')}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="p-8 grid grid-cols-2 gap-10 bg-white">
+                        <div className="p-6 md:p-8 grid grid-cols-2 gap-6 md:gap-10 bg-white print:p-4 print:gap-4">
                             <div>
-                                <p className="text-[10px] uppercase font-black text-primary-500 tracking-[0.2em] mb-2">Bill To</p>
-                                <h3 className="text-lg font-bold text-slate-900 leading-tight">{customer.name}</h3>
-                                <p className="text-sm text-slate-500 font-medium mt-1">{customer.phone}</p>
+                                <p className="text-[8px] md:text-[10px] uppercase font-black text-primary-500 tracking-[0.2em] mb-1 md:mb-2 print:mb-1">Bill To</p>
+                                <h3 className="text-base md:text-lg font-bold text-slate-900 leading-tight print:text-sm">{customer.name}</h3>
+                                <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5 md:mt-1 print:text-[10px]">{customer.phone}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[10px] uppercase font-black text-slate-400 tracking-[0.2em] mb-2">Payment Info</p>
-                                <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-emerald-50 rounded-full border border-emerald-100">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wider">PAID</span>
+                                <p className="text-[8px] md:text-[10px] uppercase font-black text-slate-400 tracking-[0.2em] mb-1 md:mb-2 print:mb-1">Payment Info</p>
+                                <div className="inline-flex items-center gap-1.5 md:gap-2 px-2 md:px-2.5 py-0.5 md:py-1 bg-emerald-50 rounded-full border border-emerald-100 print:px-1.5 print:py-0.5">
+                                    <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-emerald-500"></span>
+                                    <span className="text-[7px] md:text-[9px] font-black text-emerald-700 uppercase tracking-wider">PAID</span>
                                 </div>
-                                <p className="text-xs text-slate-600 font-bold mt-2">Method: <span className="text-slate-900">Cash / UPI</span></p>
+                                <p className="text-[10px] md:text-xs text-slate-600 font-bold mt-1.5 md:mt-2 print:text-[9px]">Method: <span className="text-slate-900">Cash / UPI</span></p>
                             </div>
                         </div>
 
-                        <div className="px-8 pb-6">
-                            <div className="rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                        <div className="px-6 md:px-8 pb-4 md:pb-6 print:px-4 print:pb-3">
+                            <div className="rounded-xl md:2xl border border-slate-100 overflow-hidden shadow-sm print:border-slate-200">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase text-slate-500 tracking-[0.15em]">
-                                            <th className="px-6 py-3">Item Details</th>
-                                            <th className="px-4 py-3 text-center">Qty</th>
-                                            <th className="px-4 py-3 text-right">Price</th>
-                                            <th className="px-6 py-3 text-right">Amount</th>
+                                        <tr className="bg-slate-50 border-b border-slate-100 text-[8px] md:text-[10px] font-black uppercase text-slate-500 tracking-[0.15em] print:bg-slate-50/50">
+                                            <th className="px-4 md:px-6 py-2 md:py-3 print:px-2 print:py-2">Item Details</th>
+                                            <th className="px-2 md:px-4 py-2 md:py-3 text-center print:px-1">Qty</th>
+                                            <th className="px-2 md:px-4 py-2 md:py-3 text-right print:px-1">Price</th>
+                                            <th className="px-4 md:px-6 py-2 md:py-3 text-right print:px-2">Amount</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-50">
+                                    <tbody className="divide-y divide-slate-50 print:divide-slate-100">
                                         {items.map((item, idx) => (
-                                            <tr key={idx} className={`text-sm group ${item.rentalPrice < 0 ? 'bg-slate-50/50' : ''}`}>
-                                                <td className="px-6 py-4">
+                                            <tr key={idx} className={`text-xs md:text-sm group ${item.rentalPrice < 0 ? 'bg-slate-50/50' : ''} print:text-[10px]`}>
+                                                <td className="px-4 md:px-6 py-3 md:py-4 print:px-2 print:py-2">
                                                     <p className={`font-bold leading-tight mb-0.5 ${item.rentalPrice < 0 ? 'text-emerald-600' : 'text-slate-800'}`}>{item.name}</p>
-                                                    <span className="text-[9px] font-black text-primary-400 uppercase tracking-widest">{item.rentalPrice < 0 ? 'Deduction' : (bill?.type || 'General Sale')}</span>
+                                                    <span className="text-[7px] md:text-[9px] font-black text-primary-400 uppercase tracking-widest">{item.rentalPrice < 0 ? 'Deduction' : (bill?.type || 'General Sale')}</span>
                                                 </td>
-                                                <td className="px-4 py-4 text-center text-slate-600 font-bold">{item.quantity}</td>
-                                                <td className="px-4 py-4 text-right text-slate-500 font-medium">₹{Math.abs(parseFloat(item.sellingPrice || item.rentalPrice || 0)).toLocaleString()}</td>
-                                                <td className={`px-6 py-4 text-right font-black ${item.rentalPrice < 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                                <td className="px-2 md:px-4 py-3 md:py-4 text-center text-slate-600 font-bold print:px-1">{item.quantity}</td>
+                                                <td className="px-2 md:px-4 py-3 md:py-4 text-right text-slate-500 font-medium print:px-1">₹{Math.abs(parseFloat(item.sellingPrice || item.rentalPrice || 0)).toLocaleString()}</td>
+                                                <td className={`px-4 md:px-6 py-3 md:py-4 text-right font-black ${item.rentalPrice < 0 ? 'text-emerald-600' : 'text-slate-900'} print:px-2`}>
                                                     {item.rentalPrice < 0 ? '-' : ''}₹{Math.abs(parseFloat(item.quantity * (item.sellingPrice || item.rentalPrice || 0))).toLocaleString()}
                                                 </td>
                                             </tr>
@@ -77,30 +77,30 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                             </div>
                         </div>
 
-                        <div className="px-8 pb-8 flex justify-end">
-                            <div className="w-72 space-y-3 bg-slate-900 p-6 rounded-[1.5rem] text-white relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest opacity-60">
+                        <div className="px-6 md:px-8 pb-6 md:pb-8 flex justify-end print:px-4 print:pb-4">
+                            <div className="w-56 md:w-72 space-y-2 md:space-y-3 bg-slate-900 p-4 md:p-6 rounded-[1.2rem] md:rounded-[1.5rem] text-white relative overflow-hidden print:bg-slate-900 print:w-48 print:p-3 print:rounded-xl">
+                                <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-primary-500/10 rounded-full -mr-12 md:-mr-16 -mt-12 md:-mt-16 blur-3xl print:hidden"></div>
+                                <div className="flex justify-between text-[8px] md:text-[10px] font-bold uppercase tracking-widest opacity-60">
                                     <span>Subtotal</span>
                                     <span>₹{(parseFloat(total) + parseFloat(bill?.extraDiscount || 0)).toLocaleString()}</span>
                                 </div>
                                 {parseFloat(bill?.extraDiscount || 0) > 0 && (
-                                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-primary-400">
+                                    <div className="flex justify-between text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-primary-400">
                                         <span>Extra Discount</span>
                                         <span>-₹{parseFloat(bill.extraDiscount).toLocaleString()}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between items-center pt-3 border-t border-white/10">
-                                    <span className="text-xs font-black uppercase tracking-widest">Grand Total</span>
-                                    <span className="text-2xl font-black italic tracking-tighter">₹{parseFloat(total).toLocaleString()}</span>
+                                <div className="flex justify-between items-center pt-2 md:pt-3 border-t border-white/10">
+                                    <span className="text-[9px] md:text-xs font-black uppercase tracking-widest">Total</span>
+                                    <span className="text-lg md:text-2xl font-black italic tracking-tighter">₹{parseFloat(total).toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="px-8 pb-10">
-                            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center text-center">
-                                <p className="text-sm text-slate-800 font-black mb-1 uppercase tracking-widest italic leading-tight">Your trust is our pride!</p>
-                                <p className="text-[10px] text-slate-400 font-bold leading-relaxed max-w-sm">This receipt confirms your purchase at <span className="text-primary-600">EYELUXE</span>.</p>
+                        <div className="px-6 md:px-8 pb-8 md:pb-10 print:px-4 print:pb-6">
+                            <div className="p-4 md:p-6 bg-slate-50 rounded-xl md:2xl border border-slate-100 flex flex-col items-center text-center print:bg-transparent print:border-none print:p-0">
+                                <p className="text-xs md:text-sm text-slate-800 font-black mb-1 uppercase tracking-widest italic leading-tight print:text-[9px]">Your trust is our pride!</p>
+                                <p className="text-[8px] md:text-[10px] text-slate-400 font-bold leading-relaxed max-w-sm print:text-[7px]">This receipt confirms your purchase at <span className="text-primary-600">EYELUXE</span>.</p>
                             </div>
                         </div>
                     </div>
@@ -121,20 +121,52 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
         
         @media print {
-          @page { margin: 0; size: auto; }
-          body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          body * { visibility: hidden; }
-          .print-section, .print-section * { visibility: visible; }
-          .print-section { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            padding: 0;
-            margin: 0;
+          @page { 
+            margin: 0; 
+            size: auto; 
+          }
+          
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
             background: white !important;
           }
-          .custom-scrollbar { overflow: visible !important; height: auto !important; }
+
+          /* Hide everything except our print section */
+          body > #root > *,
+          #print-container > :not(:first-child) {
+            display: none !important;
+          }
+
+          #print-container {
+            position: relative !important;
+            display: block !important;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            z-index: auto !important;
+          }
+
+          .print-section {
+            width: 100% !important;
+            max-width: 380px !important; /* Forces a smaller width for portable printers */
+            margin: 0 auto !important;
+            padding: 0 !important;
+            border: none !important;
+            position: static !important;
+          }
+
+          /* General text size reduction for thermal printers */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .custom-scrollbar { 
+            overflow: visible !important; 
+            height: auto !important; 
+            max-height: none !important;
+          }
         }
       `}</style>
         </div>
