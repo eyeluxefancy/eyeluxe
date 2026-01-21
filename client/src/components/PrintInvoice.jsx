@@ -126,46 +126,67 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             size: auto; 
           }
           
-          html, body {
-            height: auto !important;
-            overflow: visible !important;
-            background: white !important;
+          /* Hide EVERYTHING first */
+          body * {
+            visibility: hidden !important;
+            transition: none !important;
+            animation: none !important;
           }
 
-          /* Hide everything except our print section */
-          body > #root > *,
-          #print-container > :not(:first-child) {
-            display: none !important;
+          /* Show ONLY the print container and its children */
+          #print-container, 
+          #print-container *,
+          .print-section,
+          .print-section * {
+            visibility: visible !important;
+            opacity: 1 !important;
           }
 
           #print-container {
-            position: relative !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
             display: block !important;
             background: white !important;
-            padding: 0 !important;
             margin: 0 !important;
-            z-index: auto !important;
+            padding: 0 !important;
+            z-index: 9999 !important;
+            transform: none !important;
+          }
+
+          .print:hidden, .print-hidden {
+            display: none !important;
           }
 
           .print-section {
             width: 100% !important;
-            max-width: 380px !important; /* Forces a smaller width for portable printers */
+            max-width: 380px !important;
             margin: 0 auto !important;
             padding: 0 !important;
-            border: none !important;
-            position: static !important;
+            background: white !important;
           }
 
-          /* General text size reduction for thermal printers */
+          /* Force colors for thermal/small printers */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            color-adjust: exact !important;
           }
 
-          .custom-scrollbar { 
-            overflow: visible !important; 
-            height: auto !important; 
+          /* Remove all possible scroll containers for print */
+          .custom-scrollbar, .overflow-y-auto {
+            overflow: visible !important;
+            height: auto !important;
             max-height: none !important;
+          }
+
+          /* Ensure body doesn't clip content */
+          html, body {
+            height: auto !important;
+            overflow: visible !important;
+            background: white !important;
           }
         }
       `}</style>
