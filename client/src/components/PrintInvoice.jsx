@@ -49,25 +49,25 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
 
                         <div className="px-6 md:px-8 pb-4 md:pb-6 print:px-4 print:pb-3">
                             <div className="rounded-xl md:2xl border border-slate-100 overflow-hidden shadow-sm print:border-slate-200">
-                                <table className="w-full text-left">
+                                <table className="w-full text-left print:table">
                                     <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-100 text-[8px] md:text-[10px] font-black uppercase text-slate-500 tracking-[0.15em] print:bg-slate-50/50">
-                                            <th className="px-4 md:px-6 py-2 md:py-3 print:px-2 print:py-2">Item Details</th>
-                                            <th className="px-2 md:px-4 py-2 md:py-3 text-center print:px-1">Qty</th>
-                                            <th className="px-2 md:px-4 py-2 md:py-3 text-right print:px-1">Price</th>
-                                            <th className="px-4 md:px-6 py-2 md:py-3 text-right print:px-2">Amount</th>
+                                        <tr className="bg-slate-50 border-b border-slate-100 text-[8px] md:text-[10px] font-black uppercase text-slate-500 tracking-[0.15em] print:bg-slate-50/50 print:table-row">
+                                            <th className="px-4 md:px-6 py-2 md:py-3 print:px-2 print:py-2 print:table-cell">Item Details</th>
+                                            <th className="px-2 md:px-4 py-2 md:py-3 text-center print:px-1 print:table-cell">Qty</th>
+                                            <th className="px-2 md:px-4 py-2 md:py-3 text-right print:px-1 print:table-cell">Price</th>
+                                            <th className="px-4 md:px-6 py-2 md:py-3 text-right print:px-2 print:table-cell">Amount</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-50 print:divide-slate-100">
+                                    <tbody className="divide-y divide-slate-50 print:divide-slate-100 print:table-row-group">
                                         {items.map((item, idx) => (
-                                            <tr key={idx} className={`text-xs md:text-sm group ${item.rentalPrice < 0 ? 'bg-slate-50/50' : ''} print:text-[10px]`}>
-                                                <td className="px-4 md:px-6 py-3 md:py-4 print:px-2 print:py-2">
+                                            <tr key={idx} className={`text-xs md:text-sm group ${item.rentalPrice < 0 ? 'bg-slate-50/50' : ''} print:text-[10px] print:table-row`}>
+                                                <td className="px-4 md:px-6 py-3 md:py-4 print:px-2 print:py-2 print:table-cell">
                                                     <p className={`font-bold leading-tight mb-0.5 ${item.rentalPrice < 0 ? 'text-emerald-600' : 'text-slate-800'}`}>{item.name}</p>
                                                     <span className="text-[7px] md:text-[9px] font-black text-primary-400 uppercase tracking-widest">{item.rentalPrice < 0 ? 'Deduction' : (bill?.type || 'General Sale')}</span>
                                                 </td>
-                                                <td className="px-2 md:px-4 py-3 md:py-4 text-center text-slate-600 font-bold print:px-1">{item.quantity}</td>
-                                                <td className="px-2 md:px-4 py-3 md:py-4 text-right text-slate-500 font-medium print:px-1">₹{Math.abs(parseFloat(item.sellingPrice || item.rentalPrice || 0)).toLocaleString()}</td>
-                                                <td className={`px-4 md:px-6 py-3 md:py-4 text-right font-black ${item.rentalPrice < 0 ? 'text-emerald-600' : 'text-slate-900'} print:px-2`}>
+                                                <td className="px-2 md:px-4 py-3 md:py-4 text-center text-slate-600 font-bold print:px-1 print:table-cell">{item.quantity}</td>
+                                                <td className="px-2 md:px-4 py-3 md:py-4 text-right text-slate-500 font-medium print:px-1 print:table-cell">₹{Math.abs(parseFloat(item.sellingPrice || item.rentalPrice || 0)).toLocaleString()}</td>
+                                                <td className={`px-4 md:px-6 py-3 md:py-4 text-right font-black ${item.rentalPrice < 0 ? 'text-emerald-600' : 'text-slate-900'} print:px-2 print:table-cell`}>
                                                     {item.rentalPrice < 0 ? '-' : ''}₹{Math.abs(parseFloat(item.quantity * (item.sellingPrice || item.rentalPrice || 0))).toLocaleString()}
                                                 </td>
                                             </tr>
@@ -126,13 +126,22 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             size: auto; 
           }
           
+          /* The real fix for 1 sheet: Hide everything EXCEPT the invoice */
+          /* We hack this by making the body hidden and ONLY showing the portal */
           body {
             visibility: hidden !important;
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
+            height: auto !important;
           }
 
+          /* Hide Sidebar, Header and other Layout elements specifically to remove their space */
+          aside, header, nav, .fixed.inset-0:not(#print-container) {
+            display: none !important;
+          }
+
+          /* Show the print container and its hierarchy */
           #print-container, 
           #print-container *,
           .print-section,
@@ -163,10 +172,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             margin: 0 auto !important;
           }
 
-          .print:hidden {
-            display: none !important;
-          }
-
+          /* Force colors and prevent animations */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
