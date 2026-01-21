@@ -126,79 +126,57 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             size: auto; 
           }
           
-          /* RESET everything for print */
           body {
+            visibility: hidden !important;
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            width: 100%;
           }
 
-          /* Hide ALL page elements except our receipt */
-          body > #root, 
-          header, 
-          aside, 
-          nav, 
-          button:not(.print-only) {
-            display: none !important;
+          #print-container, 
+          #print-container *,
+          .print-section,
+          .print-section * {
+            visibility: visible !important;
+            opacity: 1 !important;
           }
 
-          /* Force the print container to sit at the top and be visible */
           #print-container {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
+            height: auto !important;
             display: block !important;
             background: white !important;
+            z-index: 9999 !important;
             margin: 0 !important;
             padding: 0 !important;
-            z-index: 1000 !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            transform: none !important;
-            animation: none !important;
           }
 
-          /* The inner white box should now fill page */
           #print-container > div {
-            width: 100% !important;
-            max-width: 380px !important; /* Proper receipt width */
-            margin: 0 auto !important;
             box-shadow: none !important;
-            border-radius: 0 !important;
-            max-height: none !important;
-            overflow: visible !important;
-            transform: none !important;
-            animation: none !important;
-            opacity: 1 !important;
-            visibility: visible !important;
-          }
-
-          /* Ensure all content inside is visible */
-          .print-section, .print-section * {
-            visibility: visible !important;
-            opacity: 1 !important;
-            display: block !important;
-          }
-
-          /* Tables need special care for display block */
-          table.print-section, table {
-            display: table !important;
-          }
-          tr { display: table-row !important; }
-          td, th { display: table-cell !important; }
-
-          /* Small printer optimizations */
-          .print-section {
-            padding: 0 !important;
             border: none !important;
+            border-radius: 0 !important;
+            width: 100% !important;
+            max-width: 380px !important;
+            margin: 0 auto !important;
           }
-          
-          .overflow-y-auto {
+
+          .print:hidden {
+            display: none !important;
+          }
+
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            transition: none !important;
+            animation: none !important;
+          }
+
+          .custom-scrollbar, .overflow-y-auto {
             overflow: visible !important;
+            height: auto !important;
             max-height: none !important;
           }
         }
