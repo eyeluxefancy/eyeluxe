@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import logo from '../assets/logo.png';
 
 export default function PrintInvoice({ bill, customer, items, total, onClose }) {
@@ -5,7 +6,9 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
         window.print();
     };
 
-    return (
+    // We use a Portal to move the invoice to the end of <body>.
+    // This allows us to hide the entire #root app during print WITHOUT hiding the invoice.
+    return createPortal(
         <div id="print-container" className="fixed inset-0 z-[101] bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 flex flex-col max-h-[90vh] print:max-h-none print:shadow-none print:w-full print:max-w-none print:rounded-none">
 
@@ -126,30 +129,20 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             size: auto; 
           }
           
-          /* The real fix for 1 sheet: Hide everything EXCEPT the invoice */
-          /* We hack this by making the body hidden and ONLY showing the portal */
+          /* AGGRESSIVE FIX: Hide the entire app root */
+          #root {
+            display: none !important;
+          }
+
+          /* Ensure the body allows the portal content to be shown */
           body {
-            visibility: hidden !important;
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
             height: auto !important;
           }
 
-          /* Hide Sidebar, Header and other Layout elements specifically to remove their space */
-          aside, header, nav, .fixed.inset-0:not(#print-container) {
-            display: none !important;
-          }
-
-          /* Show the print container and its hierarchy */
-          #print-container, 
-          #print-container *,
-          .print-section,
-          .print-section * {
-            visibility: visible !important;
-            opacity: 1 !important;
-          }
-
+          /* The Portal moves this div to be a sibling of #root, so it's NOT hidden by #root { display: none } */
           #print-container {
             position: absolute !important;
             left: 0 !important;
@@ -172,7 +165,6 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             margin: 0 auto !important;
           }
 
-          /* Force colors and prevent animations */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -187,6 +179,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
           }
         }
       `}</style>
-        </div>
+        </div>,
+        document.body
     );
 }
