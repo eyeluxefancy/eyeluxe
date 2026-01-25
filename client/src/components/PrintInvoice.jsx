@@ -23,6 +23,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                                 <div className="flex flex-col -ml-6 md:-ml-12 print:-ml-2">
                                     <h1 className="text-3xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none mb-1 md:mb-2 print:text-xl">EYELUXE</h1>
                                     <p className="text-[8px] md:text-base text-primary-600 font-bold tracking-[0.2em] md:tracking-[0.3em] uppercase leading-none print:text-[6px]">Cosmetics & Bridal Fancy</p>
+                                    <p className="text-[8px] md:text-[10px] text-slate-400 font-black mt-1 print:text-[7px] print:mt-0.5">Ph: <span className="text-slate-600">8078768999</span></p>
                                 </div>
                             </div>
                             <div className="text-right">
