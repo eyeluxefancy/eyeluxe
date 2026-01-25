@@ -39,6 +39,15 @@ router.get('/dashboard', async (req, res) => {
             });
         };
 
+        const getSalesAnalytics = (periodBills) => {
+            const totals = periodBills.reduce((acc, b) => {
+                const method = (b.paymentMethod || 'Cash').toUpperCase();
+                acc[method] = (acc[method] || 0) + (b.total || 0);
+                return acc;
+            }, { CASH: 0, UPI: 0 });
+            return totals;
+        };
+
         const todayBills = getSalesForPeriod(today);
         const weekBills = getSalesForPeriod(startOfWeek);
         const monthBills = getSalesForPeriod(startOfMonth);
@@ -60,9 +69,6 @@ router.get('/dashboard', async (req, res) => {
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
         const expiringAlerts = products.filter(p => p.expiryDate && new Date(p.expiryDate) < thirtyDaysFromNow).length;
 
-        // Recent Bills (Top 5)
-        const recentBills = [...bills].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-
         res.json({
             totalStockValue,
             todaySales,
@@ -72,12 +78,18 @@ router.get('/dashboard', async (req, res) => {
             totalExpenses,
             pendingReturns,
             expiringAlerts,
-            recentBills,
+            recentBills: [...bills].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5),
             allBills: {
                 today: todayBills,
                 week: weekBills,
                 month: monthBills,
                 year: yearBills
+            },
+            methodTotals: {
+                today: getSalesAnalytics(todayBills),
+                week: getSalesAnalytics(weekBills),
+                month: getSalesAnalytics(monthBills),
+                year: getSalesAnalytics(yearBills)
             },
             today: today.toISOString()
         });

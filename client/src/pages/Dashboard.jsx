@@ -58,6 +58,12 @@ export default function Dashboard() {
             week: [],
             month: [],
             year: []
+        },
+        methodTotals: {
+            today: { CASH: 0, UPI: 0 },
+            week: { CASH: 0, UPI: 0 },
+            month: { CASH: 0, UPI: 0 },
+            year: { CASH: 0, UPI: 0 }
         }
     });
 
@@ -289,12 +295,18 @@ export default function Dashboard() {
                                     </div>
                                     <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight italic">{periodLabel[selectedPeriod]}</h3>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-3">
                                     <div className="px-3 py-1 bg-slate-900 text-white rounded-lg text-[9px] font-black tracking-[0.2em] uppercase">
-                                        Total Revenue: ₹{stats[`${selectedPeriod}Sales`]?.toLocaleString()}
+                                        Total: ₹{stats[`${selectedPeriod}Sales`]?.toLocaleString()}
                                     </div>
                                     <div className="px-3 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg text-[9px] font-black tracking-[0.2em] uppercase">
-                                        {stats.allBills[selectedPeriod]?.length} Sales Recorded
+                                        Cash: ₹{stats.methodTotals[selectedPeriod].CASH?.toLocaleString()}
+                                    </div>
+                                    <div className="px-3 py-1 bg-blue-50 text-blue-600 border border-blue-100 rounded-lg text-[9px] font-black tracking-[0.2em] uppercase">
+                                        UPI: ₹{stats.methodTotals[selectedPeriod].UPI?.toLocaleString()}
+                                    </div>
+                                    <div className="px-3 py-1 bg-slate-50 text-slate-500 border border-slate-100 rounded-lg text-[9px] font-black tracking-[0.2em] uppercase">
+                                        {stats.allBills[selectedPeriod]?.length} Sales
                                     </div>
                                 </div>
                             </div>
@@ -337,7 +349,7 @@ export default function Dashboard() {
                                             <th className="px-6 py-5">Invoice</th>
                                             <th className="px-6 py-5 text-center">Date</th>
                                             <th className="px-6 py-5">Customer</th>
-                                            <th className="px-6 py-5 text-center">Items</th>
+                                            <th className="px-6 py-5 text-center">Method</th>
                                             <th className="px-6 py-5 text-right pr-8">Amount</th>
                                         </tr>
                                     </thead>
@@ -350,8 +362,7 @@ export default function Dashboard() {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <p className="text-[10px] font-black text-slate-500">{new Date(bill.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
-                                                    <p className="text-[8px] font-bold text-slate-300 uppercase tracking-tighter mt-0.5">{new Date(bill.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                    <p className="text-[10px] font-black text-slate-500">{new Date(bill.date).toLocaleDateString('en-GB')}</p>
                                                 </td>
                                                 <td className="px-6 py-5">
                                                     <div className="flex flex-col">
@@ -360,8 +371,8 @@ export default function Dashboard() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <span className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                                        {bill.items?.length || 0} ITEMS
+                                                    <span className={`inline-flex px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${bill.paymentMethod?.toUpperCase() === 'UPI' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                                                        {bill.paymentMethod || 'CASH'}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-5 text-right pr-8">
