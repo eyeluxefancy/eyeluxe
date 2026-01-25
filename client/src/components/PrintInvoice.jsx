@@ -81,21 +81,21 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                         </div>
 
                         <div className="px-6 md:px-8 pb-6 md:pb-8 flex justify-end print:px-2 print:pb-2">
-                            <div className="w-56 md:w-72 space-y-2 md:space-y-3 bg-slate-900 p-4 md:p-6 rounded-[1.2rem] md:rounded-[1.5rem] text-white relative overflow-hidden print:bg-slate-900 print:w-40 print:p-2 print:rounded-lg print:space-y-1">
+                            <div className="w-56 md:w-72 space-y-2 md:space-y-3 bg-slate-900 p-4 md:p-6 rounded-[1.2rem] md:rounded-[1.5rem] text-white relative overflow-hidden print:bg-transparent print:w-40 print:p-2 print:rounded-none print:space-y-1 print:text-slate-900">
                                 <div className="absolute top-0 right-0 w-24 md:w-32 h-24 md:h-32 bg-primary-500/10 rounded-full -mr-12 md:-mr-16 -mt-12 md:-mt-16 blur-3xl print:hidden"></div>
-                                <div className="flex justify-between text-[8px] md:text-[10px] font-bold uppercase tracking-widest opacity-60 print:text-[7px]">
+                                <div className="flex justify-between text-[8px] md:text-[10px] font-bold uppercase tracking-widest opacity-60 print:text-[7px] print:opacity-100 print:text-slate-500">
                                     <span>Subtotal</span>
                                     <span>₹{(parseFloat(total) + parseFloat(bill?.extraDiscount || 0)).toLocaleString()}</span>
                                 </div>
                                 {parseFloat(bill?.extraDiscount || 0) > 0 && (
-                                    <div className="flex justify-between text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-primary-400 print:text-[7px]">
+                                    <div className="flex justify-between text-[8px] md:text-[10px] font-bold uppercase tracking-widest text-primary-400 print:text-[7px] print:text-slate-500">
                                         <span>Extra Discount</span>
                                         <span>-₹{parseFloat(bill.extraDiscount).toLocaleString()}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between items-center pt-2 md:pt-3 border-t border-white/10 print:pt-1">
-                                    <span className="text-[9px] md:text-xs font-black uppercase tracking-widest print:text-[8px]">Total</span>
-                                    <span className="text-lg md:text-2xl font-black italic tracking-tighter print:text-base">₹{parseFloat(total).toLocaleString()}</span>
+                                <div className="flex justify-between items-center pt-2 md:pt-3 border-t border-white/10 print:pt-1 print:border-slate-200">
+                                    <span className="text-[9px] md:text-xs font-black uppercase tracking-widest print:text-[8px] print:text-slate-900">Total</span>
+                                    <span className="text-lg md:text-2xl font-black italic tracking-tighter print:text-base print:text-slate-900">₹{parseFloat(total).toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
