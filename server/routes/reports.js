@@ -24,12 +24,19 @@ router.get('/dashboard', async (req, res) => {
         // Sales Calculations
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+
+        // Use a clone to avoid mutating 'now'
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfYear = new Date(now.getFullYear(), 0, 1);
 
         const getSalesForPeriod = (startDate) => {
-            return bills.filter(b => new Date(b.date) >= startDate);
+            return bills.filter(b => {
+                const billDate = new Date(b.date);
+                return billDate >= startDate;
+            });
         };
 
         const todayBills = getSalesForPeriod(today);
