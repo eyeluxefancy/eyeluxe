@@ -14,17 +14,33 @@ router.get('/dashboard', async (req, res) => {
         const expensesSnapshot = await db.collection('expenses').get();
 
         const products = productsSnapshot.docs.map(doc => doc.data());
-        const rentals = rentalsSnapshot.docs.map(doc => doc.data());
-        const bills = billsSnapshot.docs.map(doc => doc.data());
+        const rentals = rentalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const bills = billsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const expenses = expensesSnapshot.docs.map(doc => doc.data());
 
         // Total Stock Value
         const totalStockValue = products.reduce((acc, p) => acc + ((p.purchasePrice || 0) * (p.stock || 0)), 0);
 
-        // Today's Sales & Rental Income
-        const today = new Date().toISOString().split('T')[0];
-        const todayBills = bills.filter(b => b.date.startsWith(today));
+        // Sales Calculations
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+        const getSalesForPeriod = (startDate) => {
+            return bills.filter(b => new Date(b.date) >= startDate);
+        };
+
+        const todayBills = getSalesForPeriod(today);
+        const weekBills = getSalesForPeriod(startOfWeek);
+        const monthBills = getSalesForPeriod(startOfMonth);
+        const yearBills = getSalesForPeriod(startOfYear);
+
         const todaySales = todayBills.reduce((acc, b) => acc + (b.total || 0), 0);
+        const weekSales = weekBills.reduce((acc, b) => acc + (b.total || 0), 0);
+        const monthSales = monthBills.reduce((acc, b) => acc + (b.total || 0), 0);
+        const yearSales = yearBills.reduce((acc, b) => acc + (b.total || 0), 0);
 
         // Total Expenses
         const totalExpenses = expenses.reduce((acc, e) => acc + (e.amount || 0), 0);
@@ -37,20 +53,26 @@ router.get('/dashboard', async (req, res) => {
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
         const expiringAlerts = products.filter(p => p.expiryDate && new Date(p.expiryDate) < thirtyDaysFromNow).length;
 
-        // Recent Bills
-        const recentBills = billsSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() }))
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 5);
+        // Recent Bills (Top 5)
+        const recentBills = [...bills].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
 
         res.json({
             totalStockValue,
             todaySales,
+            weekSales,
+            monthSales,
+            yearSales,
             totalExpenses,
             pendingReturns,
             expiringAlerts,
             recentBills,
-            today
+            allBills: {
+                today: todayBills,
+                week: weekBills,
+                month: monthBills,
+                year: yearBills
+            },
+            today: today.toISOString()
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
