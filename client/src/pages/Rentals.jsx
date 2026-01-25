@@ -22,7 +22,8 @@ export default function Rentals() {
         customerPhone: '',
         startDate: new Date().toISOString().split('T')[0],
         expectedReturnDate: '',
-        extraDiscount: 0
+        extraDiscount: 0,
+        paymentMethod: 'Cash'
     });
 
     const calculateSubtotal = () => {
@@ -89,7 +90,8 @@ export default function Rentals() {
             customerPhone: rental.customerPhone || '',
             startDate: rental.startDate ? rental.startDate.split('T')[0] : '',
             expectedReturnDate: rental.expectedReturnDate ? rental.expectedReturnDate.split('T')[0] : '',
-            extraDiscount: rental.extraDiscount || 0
+            extraDiscount: rental.extraDiscount || 0,
+            paymentMethod: rental.paymentMethod || 'Cash'
         });
         setShowModal(true);
     };
@@ -108,7 +110,7 @@ export default function Rentals() {
     const closeModal = () => {
         setShowModal(false);
         setEditingId(null);
-        setFormData({ ornamentName: '', dailyPrice: '', advanceAmount: '', customerName: '', customerPhone: '', startDate: new Date().toISOString().split('T')[0], expectedReturnDate: '', extraDiscount: 0 });
+        setFormData({ ornamentName: '', dailyPrice: '', advanceAmount: '', customerName: '', customerPhone: '', startDate: new Date().toISOString().split('T')[0], expectedReturnDate: '', extraDiscount: 0, paymentMethod: 'Cash' });
     };
 
     const handleSubmit = async (e) => {
@@ -133,6 +135,7 @@ export default function Rentals() {
                     invoiceNo: newRental.id.slice(-6).toUpperCase(),
                     date: new Date().toISOString(),
                     customerInfo: { name: formData.customerName, phone: formData.customerPhone },
+                    paymentMethod: formData.paymentMethod,
                     cartItems: [{
                         name: `${formData.ornamentName} (${Math.round(Math.abs(new Date(formData.expectedReturnDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) || 1} Days)`,
                         quantity: 1,
@@ -179,7 +182,8 @@ export default function Rentals() {
                     }
                 ],
                 total: parseFloat(rental.rentalPrice) - (parseFloat(rental.advanceAmount) || 0),
-                extraDiscount: parseFloat(rental.extraDiscount) || 0
+                extraDiscount: parseFloat(rental.extraDiscount) || 0,
+                paymentMethod: 'Cash'
             });
 
             fetchRentals();
@@ -510,6 +514,26 @@ export default function Rentals() {
                                                 value={formData.extraDiscount}
                                                 onChange={(e) => setFormData({ ...formData, extraDiscount: e.target.value })}
                                             />
+                                        </div>
+
+                                        <div className="col-span-2 space-y-3 pt-2">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Payment Method</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, paymentMethod: 'Cash' })}
+                                                    className={`py-3.5 rounded-[1.25rem] text-xs font-black transition-all border ${formData.paymentMethod === 'Cash' ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'}`}
+                                                >
+                                                    CASH
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, paymentMethod: 'UPI' })}
+                                                    className={`py-3.5 rounded-[1.25rem] text-xs font-black transition-all border ${formData.paymentMethod === 'UPI' ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'}`}
+                                                >
+                                                    UPI
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {/* Summary Card */}

@@ -13,6 +13,7 @@ export default function Billing() {
     const [loading, setLoading] = useState(false);
     const [showPrint, setShowPrint] = useState(null);
     const [extraDiscount, setExtraDiscount] = useState(0);
+    const [paymentMethod, setPaymentMethod] = useState('Cash');
     const [bills, setBills] = useState([]);
 
     const fetchBills = async () => {
@@ -72,12 +73,14 @@ export default function Billing() {
                 subtotal: calculateSubtotal(),
                 extraDiscount: parseFloat(extraDiscount) || 0,
                 total: calculateTotal(),
+                paymentMethod: paymentMethod,
                 date: new Date().toISOString()
             });
             setShowPrint({ ...res.data, customerInfo: customer, cartItems: cart });
             setCart([]);
             setCustomer({ name: '', phone: '' });
             setExtraDiscount(0);
+            setPaymentMethod('Cash');
             fetchBills();
         } catch (err) {
             alert(err.response?.data?.error || "Billing failed");
@@ -213,7 +216,27 @@ export default function Billing() {
                                     min="0"
                                 />
                             </div>
-                            <div className="flex justify-between text-lg">
+                            <div className="space-y-3 pt-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Payment Method</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={() => setPaymentMethod('Cash')}
+                                        className={`py-2 rounded-xl text-[10px] font-black transition-all border ${paymentMethod === 'Cash' ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-900/40' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                                    >
+                                        CASH
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentMethod('UPI')}
+                                        className={`py-2 rounded-xl text-[10px] font-black transition-all border ${paymentMethod === 'UPI' ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-900/40' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                                    >
+                                        UPI
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between text-lg pt-2">
                                 <span className="font-semibold text-slate-400">Grand Total</span>
                                 <span className="font-black text-2xl text-primary-400">₹{calculateTotal()}</span>
                             </div>
