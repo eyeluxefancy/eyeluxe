@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Plus, Edit2, Trash2, ShoppingBag, Download } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, ShoppingBag, Download, Package } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -140,6 +140,21 @@ export default function Inventory() {
                 </div>
             </div>
 
+            {/* Expiry Alert Banner */}
+            {products.some(p => p.expiryDate && new Date(p.expiryDate) < new Date(new Date().setDate(new Date().getDate() + 30))) && (
+                <div className="bg-rose-50 border border-rose-100 p-4 lg:p-6 rounded-2xl lg:rounded-[2rem] flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="w-10 h-10 lg:w-12 lg:h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center shrink-0">
+                        <Package className="w-6 h-6 lg:w-7 lg:h-7" />
+                    </div>
+                    <div>
+                        <h4 className="text-xs lg:text-sm font-black text-rose-700 uppercase tracking-tight">Stock Expiry Warning</h4>
+                        <p className="text-[10px] lg:text-[11px] text-rose-600 font-bold uppercase tracking-wider mt-0.5">
+                            Some products are expiring within 30 days or have already expired. Please review the highlighted items below.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white rounded-2xl lg:rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className="w-full text-left min-w-[700px] lg:min-w-0">
@@ -178,8 +193,21 @@ export default function Inventory() {
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="px-3 lg:px-6 py-3 lg:py-4 text-[10px] lg:text-sm text-slate-500">
-                                        {product.expiryDate ? new Date(product.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }) : 'N/A'}
+                                    <td className="px-3 lg:px-6 py-3 lg:py-4">
+                                        {product.expiryDate ? (
+                                            <div className="flex flex-col">
+                                                <span className={`text-[10px] lg:text-sm font-semibold ${new Date(product.expiryDate) < new Date(new Date().setDate(new Date().getDate() + 30)) ? 'text-rose-600' : 'text-slate-500'}`}>
+                                                    {new Date(product.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                                </span>
+                                                {new Date(product.expiryDate) < new Date(new Date().setDate(new Date().getDate() + 30)) && (
+                                                    <span className="text-[8px] lg:text-[10px] font-black uppercase text-rose-500 animate-pulse tracking-tighter">
+                                                        {new Date(product.expiryDate) < new Date() ? 'EXPIRED' : 'Expiring Soon'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-[10px] lg:text-sm text-slate-400 italic">N/A</span>
+                                        )}
                                     </td>
                                     <td className="px-3 lg:px-6 py-3 lg:py-4 text-right">
                                         <div className="flex justify-end gap-1 lg:gap-2">

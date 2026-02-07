@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import {
     LayoutDashboard,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useAuth } from '../context/AuthContext';
 
 const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -23,6 +24,18 @@ const navItems = [
 ];
 
 export default function Sidebar({ onClose }) {
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+            navigate('/login');
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    };
+
     return (
         <aside className="w-64 h-screen bg-white border-r border-slate-200 flex flex-col relative">
             <div className="px-6 py-8 flex items-center justify-between">
@@ -68,7 +81,10 @@ export default function Sidebar({ onClose }) {
             </nav>
 
             <div className="p-4 border-t border-slate-100">
-                <button className="flex items-center gap-3 px-4 py-3 w-full text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all duration-200 group text-sm font-medium">
+                <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-3 px-4 py-3 w-full text-slate-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all duration-200 group text-sm font-medium"
+                >
                     <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
                     <span>Logout</span>
                 </button>

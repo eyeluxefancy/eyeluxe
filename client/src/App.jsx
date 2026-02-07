@@ -6,22 +6,32 @@ import Rentals from './pages/Rentals';
 import Billing from './pages/Billing';
 import Expenses from './pages/Expenses';
 import Analysis from './pages/Analysis';
+import Login from './pages/Login';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
 import './App.css';
 
 function App() {
   return (
-    <Router basename="/eyeluxe">
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="rentals" element={<Rentals />} />
-          <Route path="billing" element={<Billing />} />
-          <Route path="expenses" element={<Expenses />} />
-          <Route path="analysis" element={<Analysis />} />
-        </Route>
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router basename="/eyeluxe">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<Dashboard />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="rentals" element={<Rentals />} />
+            <Route path="billing" element={<Billing />} />
+            <Route path="expenses" element={<Expenses />} />
+            <Route path="analysis" element={<Analysis />} />
+          </Route>
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
