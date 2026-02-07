@@ -8,6 +8,7 @@ export default function Inventory() {
     const [searchTerm, setSearchTerm] = useState('');
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('all'); // 'all' or 'expiring'
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({
@@ -34,9 +35,13 @@ export default function Inventory() {
         fetchProducts();
     }, []);
 
-    const filteredProducts = products.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredProducts = products.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const isExpiring = product.expiryDate && new Date(product.expiryDate) < new Date(new Date().setDate(new Date().getDate() + 30));
+
+        if (filter === 'expiring') return matchesSearch && isExpiring;
+        return matchesSearch;
+    });
 
     const exportToCSV = () => {
         const headers = ['Product Name', 'Purchase Price', 'MRP', 'Selling Price', 'Stock', 'Expiry Date'];
@@ -131,6 +136,20 @@ export default function Inventory() {
                     </div>
                 </div>
                 <div className="flex gap-2 lg:gap-4 w-full sm:w-auto">
+                    <div className="flex bg-slate-50 p-1 rounded-xl lg:rounded-2xl border border-slate-100">
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={`px-4 py-2 rounded-lg lg:rounded-xl text-[9px] lg:text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'bg-white shadow-sm text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setFilter('expiring')}
+                            className={`px-4 py-2 rounded-lg lg:rounded-xl text-[9px] lg:text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'expiring' ? 'bg-primary-600 shadow-sm text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                            Expiring
+                        </button>
+                    </div>
                     <button onClick={exportToCSV} className="flex-1 sm:flex-initial btn-secondary flex items-center justify-center gap-2 px-4 lg:px-6 py-3 lg:py-4 rounded-xl lg:rounded-2xl border-slate-100 shadow-sm text-[9px] lg:text-xs font-black uppercase tracking-widest">
                         <Download className="w-3.5 h-3.5 lg:w-4 lg:h-4" /> <span className="hidden sm:inline">Export Data</span><span className="sm:hidden">Export</span>
                     </button>
