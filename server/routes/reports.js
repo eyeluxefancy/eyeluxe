@@ -8,9 +8,11 @@ router.get('/dashboard', async (req, res) => {
         if (!db || typeof db.collection !== 'function') {
             throw new Error("Database not initialized. Please check server logs for Firebase configuration errors.");
         }
+        const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
+
         const productsSnapshot = await db.collection('products').get();
-        const rentalsSnapshot = await db.collection('rentals').get();
-        const billsSnapshot = await db.collection('bills').get();
+        const rentalsSnapshot = await db.collection('rentals').where('status', '==', 'Rented').get();
+        const billsSnapshot = await db.collection('bills').where('date', '>=', startOfYear).get();
         const expensesSnapshot = await db.collection('expenses').get();
 
         const products = productsSnapshot.docs.map(doc => doc.data());
@@ -30,7 +32,6 @@ router.get('/dashboard', async (req, res) => {
         startOfWeek.setDate(today.getDate() - today.getDay());
 
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
 
         const getSalesForPeriod = (startDate) => {
             return bills.filter(b => {

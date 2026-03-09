@@ -7,7 +7,7 @@ const collection = 'bills';
 // Get all bills
 router.get('/', async (req, res) => {
     try {
-        const snapshot = await db.collection(collection).orderBy('date', 'desc').get();
+        const snapshot = await db.collection(collection).orderBy('date', 'desc').limit(50).get();
         const bills = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(bills);
     } catch (error) {
