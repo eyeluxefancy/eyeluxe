@@ -1,15 +1,13 @@
 import express from 'express';
-import { db } from '../firebase.js';
+import Expense from '../models/Expense.js';
 
 const router = express.Router();
-const collection = 'expenses';
 
 // Get all expenses
 router.get('/', async (req, res) => {
     try {
-        const snapshot = await db.collection(collection).orderBy('date', 'desc').get();
-        const expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        res.json(expenses);
+        const expenses = await Expense.find().sort({ date: -1 }).lean();
+        res.json(expenses.map(e => ({ ...e, id: e._id.toString() })));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -18,10 +16,10 @@ router.get('/', async (req, res) => {
 // Add an expense
 router.post('/', async (req, res) => {
     try {
-        const expense = req.body;
-        expense.date = expense.date || new Date().toISOString();
-        const docRef = await db.collection(collection).add(expense);
-        res.status(201).json({ id: docRef.id, ...expense });
+        const data = req.body;
+        data.date = data.date || new Date().toISOString();
+        const expense = await Expense.create(data);
+        res.status(201).json({ ...expense.toObject(), id: expense._id.toString() });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -31,7 +29,7 @@ router.post('/', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection(collection).doc(id).delete();
+        await Expense.findByIdAndDelete(id);
         res.json({ message: 'Expense deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });

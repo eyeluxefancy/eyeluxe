@@ -1,15 +1,13 @@
 import express from 'express';
-import { db } from '../firebase.js';
+import Rental from '../models/Rental.js';
 
 const router = express.Router();
-const collection = 'rentals';
 
 // Get all rentals
 router.get('/', async (req, res) => {
     try {
-        const snapshot = await db.collection(collection).orderBy('startDate', 'desc').get();
-        const rentals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        res.json(rentals);
+        const rentals = await Rental.find().sort({ startDate: -1 }).lean();
+        res.json(rentals.map(r => ({ ...r, id: r._id.toString() })));
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -18,10 +16,10 @@ router.get('/', async (req, res) => {
 // Add a rental
 router.post('/', async (req, res) => {
     try {
-        const rental = req.body;
-        rental.status = rental.status || 'Rented';
-        const docRef = await db.collection(collection).add(rental);
-        res.status(201).json({ id: docRef.id, ...rental });
+        const data = req.body;
+        data.status = data.status || 'Rented';
+        const rental = await Rental.create(data);
+        res.status(201).json({ ...rental.toObject(), id: rental._id.toString() });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -31,9 +29,9 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const updates = req.body;
-        await db.collection(collection).doc(id).update(updates);
-        res.json({ id, ...updates });
+        const updated = await Rental.findByIdAndUpdate(id, req.body, { new: true }).lean();
+        if (!updated) return res.status(404).json({ error: 'Rental not found' });
+        res.json({ ...updated, id: updated._id.toString() });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -43,7 +41,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection(collection).doc(id).delete();
+        await Rental.findByIdAndDelete(id);
         res.json({ message: 'Rental deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });

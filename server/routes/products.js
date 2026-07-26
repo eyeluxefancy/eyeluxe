@@ -1,17 +1,15 @@
 import express from 'express';
-import { db } from '../firebase.js';
+import Product from '../models/Product.js';
 
 const router = express.Router();
-const collection = 'products';
 
 // Get all products
 router.get('/', async (req, res) => {
     try {
-        const snapshot = await db.collection(collection).orderBy('addedDate', 'desc').get();
-        const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        res.json(products);
+        const products = await Product.find().sort({ addedDate: -1 }).lean();
+        res.json(products.map(p => ({ ...p, id: p._id.toString() })));
     } catch (error) {
-        console.error("GET /api/products error:", error);
+        console.error('GET /api/products error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -19,10 +17,10 @@ router.get('/', async (req, res) => {
 // Add a product
 router.post('/', async (req, res) => {
     try {
-        const product = req.body;
-        product.addedDate = product.addedDate || new Date().toISOString();
-        const docRef = await db.collection(collection).add(product);
-        res.status(201).json({ id: docRef.id, ...product });
+        const data = req.body;
+        data.addedDate = data.addedDate || new Date().toISOString();
+        const product = await Product.create(data);
+        res.status(201).json({ ...product.toObject(), id: product._id.toString() });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -32,9 +30,9 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const updates = req.body;
-        await db.collection(collection).doc(id).update(updates);
-        res.json({ id, ...updates });
+        const updated = await Product.findByIdAndUpdate(id, req.body, { new: true }).lean();
+        if (!updated) return res.status(404).json({ error: 'Product not found' });
+        res.json({ ...updated, id: updated._id.toString() });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -44,7 +42,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await db.collection(collection).doc(id).delete();
+        await Product.findByIdAndDelete(id);
         res.json({ message: 'Product deleted' });
     } catch (error) {
         res.status(500).json({ error: error.message });
