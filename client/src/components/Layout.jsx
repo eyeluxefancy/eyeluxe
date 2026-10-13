@@ -25,9 +25,9 @@ export default function Layout() {
     ];
 
     return (
-        <div className="flex bg-slate-50 min-h-screen font-['Inter'] relative">
+        <div className="flex bg-slate-50 min-h-screen font-['Inter'] relative lg:items-start">
             {/* Sidebar with mobile toggle state */}
-            <div className={`transition-transform duration-300 fixed inset-y-0 left-0 z-[60] lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+            <div className={`transition-transform duration-300 fixed inset-y-0 left-0 z-[60] lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
                 <Sidebar onClose={() => setIsSidebarOpen(false)} />
             </div>
 

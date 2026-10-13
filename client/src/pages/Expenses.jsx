@@ -177,8 +177,8 @@ export default function Expenses() {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100">
-                <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
+            <div className="flex flex-col xl:flex-row gap-4 xl:items-center xl:justify-between bg-white p-4 rounded-[2rem] shadow-sm border border-slate-100">
+                <div className="flex flex-wrap gap-2 min-w-0">
                     {['All', ...categories].map(cat => (
                         <button
                             key={cat}
@@ -189,7 +189,7 @@ export default function Expenses() {
                         </button>
                     ))}
                 </div>
-                <div className="relative w-full lg:w-80 group shrink-0">
+                <div className="relative w-full xl:w-80 group shrink-0">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
                     <input
                         type="text"
