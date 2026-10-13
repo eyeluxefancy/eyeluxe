@@ -188,7 +188,23 @@ export default function Inventory() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {filteredProducts.map((product) => (
+                            {loading ? (
+                                <tr><td colSpan={6} className="px-6 py-16 text-center text-sm font-bold text-slate-400">Loading products…</td></tr>
+                            ) : filteredProducts.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-20 text-center">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100">
+                                                <Package className="w-8 h-8 text-slate-300" />
+                                            </div>
+                                            <p className="text-sm font-black text-slate-500 uppercase tracking-widest">No products found</p>
+                                            <p className="text-xs text-slate-400 font-medium max-w-xs">
+                                                {products.length === 0 ? 'Add your first product with the "Add Product" button.' : 'No products match your search or filter.'}
+                                            </p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : filteredProducts.map((product) => (
                                 <tr key={product.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-3 lg:px-6 py-3 lg:py-4">
                                         <div className="flex items-center gap-2 lg:gap-3">

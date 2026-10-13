@@ -88,7 +88,7 @@ const Login = () => {
                 </div>
 
                 <div className="mt-8 text-center text-gray-500 text-xs">
-                    © 2024 Eyeluxe Boutique. All rights reserved.
+                    © {new Date().getFullYear()} Eyeluxe Boutique. All rights reserved.
                 </div>
             </div>
         </div>

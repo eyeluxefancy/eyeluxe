@@ -133,6 +133,16 @@ export default function Billing() {
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {filteredProducts.length === 0 && (
+                                <div className="md:col-span-2 py-16 text-center">
+                                    <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                                        <Search className="w-8 h-8 text-slate-200" />
+                                    </div>
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                        {products.length === 0 ? 'No products in inventory yet' : 'No products match your search'}
+                                    </p>
+                                </div>
+                            )}
                             {filteredProducts.map(product => (
                                 <div key={product.id} className="p-4 border border-slate-100 rounded-xl hover:border-primary-200 hover:bg-primary-50/30 transition-all group cursor-pointer" onClick={() => addToCart(product)}>
                                     <div className="flex justify-between items-start">

@@ -19,10 +19,14 @@ const PORT = process.env.PORT || 5000;
 
 // Configure CORS to allow frontend requests
 const corsOptions = {
-    origin: [
-        'http://localhost:5173', // Local development
-        'https://eyeluxefancy.github.io' // Production GitHub Pages
-    ],
+    origin: (origin, callback) => {
+        // Allow any localhost port in development (Vite may pick 5173, 5174, 5175...)
+        if (!origin || /^http:\/\/localhost:\d+$/.test(origin) ||
+            origin === 'https://eyeluxefancy.github.io') {
+            return callback(null, true);
+        }
+        callback(new Error('Not allowed by CORS'));
+    },
     credentials: true
 };
 

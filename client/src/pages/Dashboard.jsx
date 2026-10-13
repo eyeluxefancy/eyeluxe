@@ -28,7 +28,7 @@ const StatCard = ({ title, value, icon: Icon, color, trend, onClick, isActive })
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{title}</p>
                 <h3 className="text-2xl font-black text-slate-900 tracking-tight italic">₹{value.toLocaleString()}</h3>
             </div>
-            <div className={`p-3 rounded-2xl ${color} shadow-lg shadow-${color.split('-')[1]}-200 transition-transform group-hover:scale-110`}>
+            <div className={`p-3 rounded-2xl ${color} shadow-lg transition-transform group-hover:scale-110`}>
                 <Icon className="w-5 h-5 text-white" />
             </div>
         </div>
@@ -107,14 +107,13 @@ export default function Dashboard() {
                         Real-time business performance overview
                     </p>
                 </div>
-                <div className="flex -space-x-3 relative z-10 pr-2">
-                    {[1, 2, 3, 4].map((i) => (
-                        <div key={i} className="w-10 h-10 lg:w-12 lg:h-12 rounded-full border-4 border-white bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 shadow-sm ring-1 ring-slate-100 ring-offset-2">
-                            U{i}
-                        </div>
-                    ))}
-                    <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full border-4 border-white bg-primary-600 flex items-center justify-center text-[10px] font-black text-white shadow-xl shadow-primary-200 ring-1 ring-primary-100 ring-offset-2">
-                        +8
+                <div className="relative z-10 flex items-center gap-3 px-5 py-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <Calendar className="w-5 h-5 text-primary-500" />
+                    <div className="leading-none">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Today</p>
+                        <p className="text-sm font-black text-slate-800 tracking-tight mt-0.5">
+                            {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
                     </div>
                 </div>
             </div>
