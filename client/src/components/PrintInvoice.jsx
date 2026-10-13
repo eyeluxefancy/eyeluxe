@@ -173,6 +173,15 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             animation: none !important;
           }
 
+          /* Neutralize blend modes / backdrop filters that can crash the
+             print-preview compositor on some printer drivers */
+          #print-container * {
+            mix-blend-mode: normal !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            filter: none !important;
+          }
+
           .custom-scrollbar, .overflow-y-auto {
             overflow: visible !important;
             height: auto !important;
