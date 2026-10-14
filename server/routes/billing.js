@@ -17,52 +17,69 @@ router.get('/', async (req, res) => {
 
 // Create a bill (with stock deduction inside a MongoDB session/transaction)
 router.post('/', async (req, res) => {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const MAX_ATTEMPTS = 5;
 
-    try {
-        const billData = req.body;
-        const { items } = billData;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const session = await mongoose.startSession();
+        session.startTransaction();
 
-        // 1. Check stock for all product items
-        for (const item of items) {
-            if (item.type === 'product') {
-                const product = await Product.findById(item.id).session(session);
-                if (!product) throw new Error(`Product ${item.name} not found`);
-                const currentStock = Number(product.stock) || 0;
-                if (currentStock < item.quantity) {
-                    throw new Error(`Insufficient stock for ${item.name}`);
+        try {
+            const billData = { ...req.body };
+            const { items } = billData;
+
+            // 1. Check stock for all product items
+            for (const item of items) {
+                if (item.type === 'product') {
+                    const product = await Product.findById(item.id).session(session);
+                    if (!product) throw new Error(`Product ${item.name} not found`);
+                    const currentStock = Number(product.stock) || 0;
+                    if (currentStock < item.quantity) {
+                        throw new Error(`Insufficient stock for ${item.name}`);
+                    }
                 }
             }
-        }
 
-        // 2. Generate invoice number (count of existing docs + 1)
-        const count = await Bill.countDocuments().session(session);
-        billData.invoiceNo = `INV-${String(count + 1).padStart(5, '0')}`;
-        billData.date = billData.date || new Date().toISOString();
-
-        // 3. Decrement stock for each product item
-        for (const item of items) {
-            if (item.type === 'product') {
-                await Product.findByIdAndUpdate(
-                    item.id,
-                    { $inc: { stock: -item.quantity } },
-                    { session }
-                );
+            // 2. Generate invoice number from the HIGHEST existing number
+            //    (count-based numbering collides after a bill is deleted)
+            const last = await Bill.findOne({ invoiceNo: /^INV-\d+$/ })
+                .sort({ invoiceNo: -1 })
+                .session(session)
+                .lean();
+            let next = 1;
+            if (last && last.invoiceNo) {
+                const n = parseInt(last.invoiceNo.replace(/\D/g, ''), 10);
+                if (!Number.isNaN(n)) next = n + 1;
             }
+            billData.invoiceNo = `INV-${String(next).padStart(5, '0')}`;
+            billData.date = billData.date || new Date().toISOString();
+
+            // 3. Decrement stock for each product item
+            for (const item of items) {
+                if (item.type === 'product') {
+                    await Product.findByIdAndUpdate(
+                        item.id,
+                        { $inc: { stock: -item.quantity } },
+                        { session }
+                    );
+                }
+            }
+
+            // 4. Create the bill
+            const [bill] = await Bill.create([billData], { session });
+
+            await session.commitTransaction();
+            session.endSession();
+
+            return res.status(201).json({ ...bill.toObject(), id: bill._id.toString() });
+        } catch (error) {
+            await session.abortTransaction();
+            session.endSession();
+
+            // Duplicate invoice number (race / gap) → recompute and retry
+            if (error.code === 11000 && attempt < MAX_ATTEMPTS) continue;
+
+            return res.status(400).json({ error: error.message });
         }
-
-        // 4. Create the bill
-        const [bill] = await Bill.create([billData], { session });
-
-        await session.commitTransaction();
-        session.endSession();
-
-        res.status(201).json({ ...bill.toObject(), id: bill._id.toString() });
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        res.status(400).json({ error: error.message });
     }
 });
 
