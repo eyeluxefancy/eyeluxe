@@ -17,10 +17,10 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                     <div className="print-section bg-white">
                         <div className="p-6 md:p-10 border-b-2 border-slate-100 flex justify-between items-center bg-white print:p-2 print:border-b">
                             <div className="flex items-center">
-                                <div className="w-32 h-32 md:w-56 md:h-56 overflow-hidden flex items-center justify-center print:w-16 print:h-16">
+                                <div className="receipt-logo w-32 h-32 md:w-56 md:h-56 overflow-hidden flex items-center justify-center print:w-16 print:h-16">
                                     <img src={logo} alt="EYELUXE Logo" className="w-full scale-[2.2] object-contain mix-blend-multiply translate-y-[12%] translate-x-[-5%]" />
                                 </div>
-                                <div className="flex flex-col -ml-6 md:-ml-12 print:-ml-2">
+                                <div className="receipt-brand flex flex-col -ml-6 md:-ml-12 print:-ml-2">
                                     <h1 className="text-3xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none mb-1 md:mb-2 print:text-xl">EYELUXE</h1>
                                     <p className="text-[8px] md:text-base text-primary-600 font-bold tracking-[0.2em] md:tracking-[0.3em] uppercase leading-none print:text-[6px]">Cosmetics & Bridal Fancy</p>
                                     <p className="text-[8px] md:text-[10px] text-slate-400 font-black mt-1 print:text-[7px] print:mt-0.5">Ph: <span className="text-slate-600">8078768999</span></p>
@@ -180,6 +180,30 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
             filter: none !important;
+          }
+
+          /* Force a clean, non-overlapping header in print. This beats both
+             the md: (desktop) and print: Tailwind variants, so the logo never
+             covers the brand text regardless of the print-preview page width. */
+          #print-container .receipt-logo {
+            width: 3.5rem !important;
+            height: 3.5rem !important;
+            flex-shrink: 0 !important;
+          }
+          #print-container .receipt-logo img {
+            transform: scale(1.9) translateY(8%) !important;
+            mix-blend-mode: multiply !important;
+          }
+          #print-container .receipt-brand {
+            margin-left: 0.5rem !important;
+          }
+          #print-container .receipt-brand h1 {
+            font-size: 1.15rem !important;
+            line-height: 1 !important;
+            margin-bottom: 0.1rem !important;
+          }
+          #print-container .receipt-brand p {
+            font-size: 6px !important;
           }
 
           .custom-scrollbar, .overflow-y-auto {
