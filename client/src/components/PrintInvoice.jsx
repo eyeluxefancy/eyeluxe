@@ -127,7 +127,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
         @media print {
           @page { 
             margin: 0mm; 
-            size: auto; 
+            size: 80mm auto;
           }
           
           /* AGGRESSIVE FIX: Hide the entire app root */
@@ -162,7 +162,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             border: none !important;
             border-radius: 0 !important;
             width: 100% !important;
-            max-width: 320px !important;
+            max-width: 72mm !important;
             margin: 0 auto !important;
           }
 
@@ -182,6 +182,18 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             filter: none !important;
           }
 
+          /* Thermal printers are black-only: light greys print as faint dots,
+             so force solid black text and darker borders. */
+          #print-container,
+          #print-container * {
+            color: #000 !important;
+            border-color: #000 !important;
+            opacity: 1 !important;
+          }
+          #print-container * {
+            font-weight: 700 !important;
+          }
+
           /* Force a clean, non-overlapping header in print. This beats both
              the md: (desktop) and print: Tailwind variants, so the logo never
              covers the brand text regardless of the print-preview page width. */
@@ -192,7 +204,9 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
           }
           #print-container .receipt-logo img {
             transform: scale(1.9) translateY(8%) !important;
-            mix-blend-mode: multiply !important;
+            mix-blend-mode: normal !important;
+            /* 1-bit look so the logo prints crisp on a thermal head */
+            filter: grayscale(1) contrast(4) !important;
           }
           #print-container .receipt-brand {
             margin-left: 0.5rem !important;
@@ -211,6 +225,30 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             height: auto !important;
             max-height: none !important;
           }
+
+          /* 80mm thermal receipt: readable minimum sizes (the 6-7px sizes
+             above are too small for a 203dpi thermal head). */
+          #print-container .receipt-brand p,
+          #print-container th,
+          #print-container td,
+          #print-container td *,
+          #print-container span,
+          #print-container p,
+          #print-container h2,
+          #print-container h3 {
+            font-size: 11px !important;
+            line-height: 1.25 !important;
+            letter-spacing: 0 !important;
+          }
+          #print-container .receipt-brand h1 { font-size: 1.4rem !important; }
+          #print-container .receipt-brand p { font-size: 9px !important; }
+          #print-container th, #print-container td { padding: 2px 1px !important; }
+          #print-container table { width: 100% !important; border-collapse: collapse !important; }
+          #print-container tr { border-bottom: 1px dashed #000 !important; page-break-inside: avoid; }
+          #print-container thead tr { border-bottom: 1px solid #000 !important; }
+          #print-container .bg-emerald-50 { background: transparent !important; border: 1px solid #000 !important; }
+          #print-container .print\\:w-40 { width: 100% !important; }
+          #print-container .text-base { font-size: 15px !important; }
         }
       `}</style>
         </div>,
