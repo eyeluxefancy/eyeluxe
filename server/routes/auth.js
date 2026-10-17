@@ -63,6 +63,17 @@ router.get('/me', async (req, res) => {
         }
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Reject tokens issued before the account's sessions were invalidated
+        // (e.g. after a password change / forced logout of all sessions)
+        const user = await User.findOne({ email: (decoded.email || '').toLowerCase() }).lean();
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid or expired token' });
+        }
+        if (user.sessionsValidFrom && decoded.iat * 1000 < new Date(user.sessionsValidFrom).getTime()) {
+            return res.status(401).json({ error: 'Session ended, please log in again' });
+        }
+
         res.json({ userId: decoded.userId, email: decoded.email });
     } catch (error) {
         res.status(401).json({ error: 'Invalid or expired token' });
