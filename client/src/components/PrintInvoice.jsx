@@ -136,24 +136,42 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                 multi-column boxed table did. Hidden on screen; shown only
                 when printing. */}
             <div className="receipt-plain hidden">
-                <div className="r-center r-brand">
-                    <h1>EYELUXE</h1>
-                    <p>Cosmetics &amp; Bridal Fancy</p>
-                    <p>Ph: 8078768999</p>
+                {/* Header: brand on the left, invoice no. on the right —
+                    each side can wrap independently, so neither side is
+                    ever pushed off the page by the other. */}
+                <div className="r-head">
+                    <div className="r-brand">
+                        <h1>EYELUXE</h1>
+                        <p>Cosmetics &amp; Bridal Fancy</p>
+                        <p>Ph: 8078768999</p>
+                    </div>
+                    <div className="r-invoice-no">
+                        <p className="r-invoice-label">{bill?.title || 'INVOICE'}</p>
+                        <p>#{bill?.invoiceNo || 'DRAFT'}</p>
+                        <p>{dateStr}</p>
+                    </div>
+                </div>
+
+                <div className="r-hr r-hr-solid" />
+
+                {/* Customer on the left, payment status on the right */}
+                <div className="r-row r-customer-row">
+                    <span className="r-customer-name">{customer?.name || 'No Name'}{customer?.phone ? ` · ${customer.phone}` : ''}</span>
+                    <span className="r-pay-status">
+                        <span className="r-pay-badge">● PAID</span>
+                        <span className="r-pay-method">Method: {bill?.paymentMethod || 'Cash'}</span>
+                    </span>
                 </div>
 
                 <div className="r-hr" />
 
-                <div className="r-row">
-                    <span>{bill?.title || 'INVOICE'} #{bill?.invoiceNo || 'DRAFT'}</span>
-                    <span>{dateStr}</span>
+                {/* Item table header */}
+                <div className="r-cols r-cols-head">
+                    <span className="r-col-name">Item Details</span>
+                    <span className="r-col-qty">Qty</span>
+                    <span className="r-col-price">Price</span>
+                    <span className="r-col-amt">Amount</span>
                 </div>
-
-                <div className="r-hr" />
-
-                <p className="r-line">Bill To: {customer?.name || '-'}</p>
-                {customer?.phone && <p className="r-line">Ph: {customer.phone}</p>}
-                <p className="r-line">Payment: {bill?.paymentMethod || 'Cash'} — PAID</p>
 
                 <div className="r-hr" />
 
@@ -162,24 +180,26 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                     const lineTotal = parseFloat(item.quantity) * price;
                     const isDeduction = item.rentalPrice < 0;
                     return (
-                        <div key={idx} className="r-item">
-                            <p className="r-item-name">{item.name}</p>
-                            <div className="r-row">
-                                <span>{item.quantity} x ₹{Math.abs(price).toLocaleString()} · {isDeduction ? 'Deduction' : (bill?.type || 'General Sale')}</span>
-                                <span>{isDeduction ? '-' : ''}₹{Math.abs(lineTotal).toLocaleString()}</span>
-                            </div>
+                        <div key={idx} className="r-cols r-item-row">
+                            <span className="r-col-name">
+                                {item.name}
+                                <span className="r-item-type">{isDeduction ? 'Deduction' : (bill?.type || 'General Sale')}</span>
+                            </span>
+                            <span className="r-col-qty">{item.quantity}</span>
+                            <span className="r-col-price">₹{Math.abs(price).toLocaleString()}</span>
+                            <span className="r-col-amt">{isDeduction ? '-' : ''}₹{Math.abs(lineTotal).toLocaleString()}</span>
                         </div>
                     );
                 })}
 
                 <div className="r-hr" />
 
-                <div className="r-row">
+                <div className="r-row r-subtle">
                     <span>Subtotal</span>
                     <span>₹{subtotal.toLocaleString()}</span>
                 </div>
                 {discount > 0 && (
-                    <div className="r-row">
+                    <div className="r-row r-subtle">
                         <span>Discount</span>
                         <span>-₹{discount.toLocaleString()}</span>
                     </div>
@@ -196,7 +216,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
 
                 <div className="r-center r-footer">
                     <p>Your trust is our pride!</p>
-                    <p>Thank you for shopping at EYELUXE</p>
+                    <p>This receipt confirms your purchase at EYELUXE.</p>
                 </div>
             </div>
 
@@ -212,21 +232,51 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
           font-family: Arial, Helvetica, sans-serif;
         }
         .r-center { text-align: center; }
-        .r-brand h1 { font-size: 20px; font-weight: 900; margin: 0; letter-spacing: 0.02em; }
-        .r-brand p { font-size: 10px; font-weight: 700; margin: 2px 0 0; text-transform: uppercase; }
-        .r-hr { border-top: 1px dashed #000; margin: 6px 0; }
-        .r-hr-solid { border-top: 2px solid #000; border-top-style: solid; }
-        /* flex-wrap + flex-shrink:0 on the amount means a long label wraps
-           onto its own line instead of ever pushing the amount (the part
-           that must never be cut off) past the page edge. */
+
+        /* Header: brand (left) + invoice no./date (right). Each side wraps
+           independently (flex-wrap + min-width:0) so a long brand line can
+           never push the invoice number off the page, and vice versa. */
+        .r-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
+        .r-brand { flex: 1 1 auto; min-width: 0; }
+        .r-brand h1 { font-size: 17px; font-weight: 900; margin: 0; letter-spacing: 0.01em; }
+        .r-brand p { font-size: 9px; font-weight: 700; margin: 2px 0 0; text-transform: uppercase; }
+        .r-invoice-no { flex-shrink: 0; text-align: right; font-size: 10px; font-weight: 700; }
+        .r-invoice-no p { margin: 0; }
+        .r-invoice-label { text-transform: uppercase; font-size: 11px !important; font-weight: 900 !important; }
+
+        .r-hr { border-top: 1px dashed #000; margin: 5px 0; }
+        .r-hr-solid { border-top: 1.5px solid #000; border-top-style: solid; }
+
+        /* flex-wrap + flex-shrink:0 on the right-hand span means a long
+           label wraps onto its own line instead of ever pushing the value
+           (the part that must never be cut off) past the page edge. */
         .r-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 8px; font-size: 11px; font-weight: 700; }
         .r-row > span:first-child { text-align: left; flex: 1 1 auto; min-width: 0; }
         .r-row > span:last-child { text-align: right; white-space: nowrap; flex-shrink: 0; }
-        .r-line { font-size: 11px; font-weight: 700; margin: 2px 0; }
-        .r-item { margin-bottom: 6px; }
-        .r-item-name { font-size: 12px; font-weight: 900; margin: 0 0 1px; text-transform: uppercase; }
+        .r-subtle { opacity: 0.85; }
         .r-total { font-size: 14px; font-weight: 900; }
-        .r-footer p { font-size: 10px; font-weight: 700; margin: 2px 0; text-transform: uppercase; letter-spacing: 0.04em; }
+
+        /* Customer + payment status row */
+        .r-customer-name { text-transform: uppercase; }
+        .r-pay-status { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+        .r-pay-badge { font-size: 10px; }
+        .r-pay-method { font-size: 9px; font-weight: 700; }
+
+        /* Item "table" — built from flex rows, not a real <table>, so a
+           column can shrink/wrap instead of clipping. Qty/Price/Amount get
+           a fixed width (flex-shrink:0); the name column takes whatever
+           space is left and wraps if it has to. */
+        .r-cols { display: flex; align-items: flex-start; gap: 4px; font-size: 10px; font-weight: 700; padding: 3px 0; }
+        .r-cols-head { text-transform: uppercase; font-size: 9px; font-weight: 900; }
+        .r-col-name { flex: 1 1 auto; min-width: 0; word-break: break-word; text-align: left; }
+        .r-col-qty { flex: 0 0 14px; text-align: center; }
+        .r-col-price { flex: 0 0 32px; text-align: right; }
+        .r-col-amt { flex: 0 0 38px; text-align: right; font-weight: 900; }
+        .r-item-row { border-bottom: 1px dashed #00000055; }
+        .r-item-row:last-of-type { border-bottom: none; }
+        .r-item-type { display: block; font-size: 8px; font-weight: 700; text-transform: uppercase; opacity: 0.7; margin-top: 1px; }
+
+        .r-footer p { font-size: 9px; font-weight: 700; margin: 2px 0; text-transform: uppercase; letter-spacing: 0.03em; }
 
         @media print {
           @page {
