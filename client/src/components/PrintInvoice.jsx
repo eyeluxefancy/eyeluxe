@@ -326,13 +326,11 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
           .receipt-plain {
             display: block !important;
             width: 100% !important;
-            /* Standard 80mm roll printable width. Our flex-based "columns"
+            /* 60mm content width on an 80mm roll. Our flex-based "columns"
                (not a <table>) wrap instead of clipping if a specific
                printer's real printable area is ever narrower than this —
-               see .r-cols / .r-col-name above — so this can stay at the
-               correct, standard width instead of being shrunk defensively
-               for every printer. */
-            max-width: 72mm !important;
+               see .r-cols / .r-col-name above. */
+            max-width: 60mm !important;
             margin: 0 auto !important;
             padding: 4px 3px !important;
             color: #000 !important;
