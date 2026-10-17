@@ -238,8 +238,8 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
            never push the invoice number off the page, and vice versa. */
         .r-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; }
         .r-brand { flex: 1 1 auto; min-width: 0; }
-        .r-brand h1 { font-size: 17px; font-weight: 900; margin: 0; letter-spacing: 0.01em; }
-        .r-brand p { font-size: 9px; font-weight: 700; margin: 2px 0 0; text-transform: uppercase; }
+        .r-brand h1 { font-size: 18px; font-weight: 900; margin: 0; letter-spacing: 0.01em; }
+        .r-brand p { font-size: 10px; font-weight: 700; margin: 2px 0 0; text-transform: uppercase; }
         .r-invoice-no { flex-shrink: 0; text-align: right; font-size: 10px; font-weight: 700; }
         .r-invoice-no p { margin: 0; }
         .r-invoice-label { text-transform: uppercase; font-size: 11px !important; font-weight: 900 !important; }
@@ -253,40 +253,39 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
         .r-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 8px; font-size: 11px; font-weight: 700; }
         .r-row > span:first-child { text-align: left; flex: 1 1 auto; min-width: 0; }
         .r-row > span:last-child { text-align: right; white-space: nowrap; flex-shrink: 0; }
-        .r-subtle { opacity: 0.85; }
-        .r-total { font-size: 14px; font-weight: 900; }
+        .r-total { font-size: 15px; font-weight: 900; }
 
         /* Customer + payment status row */
         .r-customer-name { text-transform: uppercase; }
         .r-pay-status { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
         .r-pay-badge { font-size: 10px; }
-        .r-pay-method { font-size: 9px; font-weight: 700; }
+        .r-pay-method { font-size: 10px; font-weight: 700; }
 
         /* Item "table" — built from flex rows, not a real <table>, so a
            column can shrink/wrap instead of clipping. Qty/Price/Amount get
            a fixed width (flex-shrink:0); the name column takes whatever
            space is left and wraps if it has to. */
-        .r-cols { display: flex; align-items: flex-start; gap: 4px; font-size: 10px; font-weight: 700; padding: 3px 0; }
-        .r-cols-head { text-transform: uppercase; font-size: 9px; font-weight: 900; }
+        .r-cols { display: flex; align-items: flex-start; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 0; }
+        .r-cols-head { text-transform: uppercase; font-size: 10px; font-weight: 900; }
         .r-col-name { flex: 1 1 auto; min-width: 0; word-break: break-word; text-align: left; }
-        .r-col-qty { flex: 0 0 14px; text-align: center; }
-        .r-col-price { flex: 0 0 32px; text-align: right; }
-        .r-col-amt { flex: 0 0 38px; text-align: right; font-weight: 900; }
-        .r-item-row { border-bottom: 1px dashed #00000055; }
+        .r-col-qty { flex: 0 0 16px; text-align: center; }
+        .r-col-price { flex: 0 0 34px; text-align: right; }
+        .r-col-amt { flex: 0 0 40px; text-align: right; font-weight: 900; }
+        .r-item-row { border-bottom: 1px dashed #000; }
         .r-item-row:last-of-type { border-bottom: none; }
-        .r-item-type { display: block; font-size: 8px; font-weight: 700; text-transform: uppercase; opacity: 0.7; margin-top: 1px; }
+        .r-item-type { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; margin-top: 1px; }
 
-        .r-footer p { font-size: 9px; font-weight: 700; margin: 2px 0; text-transform: uppercase; letter-spacing: 0.03em; }
+        .r-footer p { font-size: 10px; font-weight: 700; margin: 2px 0; text-transform: uppercase; letter-spacing: 0.03em; }
 
         @media print {
           @page {
             margin: 0mm;
-            /* Let the OS/driver pick the page size rather than forcing one —
-               forcing a size that doesn't match what was actually selected
-               in the print dialog can cause the output to be scaled/cropped
-               unpredictably. The real safety net is the narrow max-width
-               on .receipt-plain below. */
-            size: auto;
+            /* Standard 80mm thermal roll. A properly configured 80mm
+               printer (most Bluetooth ESC/POS printers included) has a
+               genuine ~72mm printable width — rendering at the correct
+               width avoids the printer/OS having to upscale a smaller
+               image, which is what actually causes blurry small text. */
+            size: 80mm auto;
           }
 
           /* Hide the whole app; only #print-container (moved to <body> by
@@ -327,23 +326,27 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
           .receipt-plain {
             display: block !important;
             width: 100% !important;
-            /* Thermal drivers often reserve hidden hardware margins the
-               nominal "80mm" paper size doesn't account for, so the real
-               printable area can be noticeably under 72mm. Staying well
-               inside that (52mm) sacrifices a little blank margin on a
-               full-width roll but guarantees nothing runs off the edge. */
-            max-width: 52mm !important;
+            /* Standard 80mm roll printable width. Our flex-based "columns"
+               (not a <table>) wrap instead of clipping if a specific
+               printer's real printable area is ever narrower than this —
+               see .r-cols / .r-col-name above — so this can stay at the
+               correct, standard width instead of being shrunk defensively
+               for every printer. */
+            max-width: 72mm !important;
             margin: 0 auto !important;
-            padding: 4px 2px !important;
+            padding: 4px 3px !important;
             color: #000 !important;
           }
 
-          /* Darken: thermal heads render thin strokes as grey, so make
-             every stroke a touch heavier without changing layout size. */
+          /* Plain solid black, no artificial stroke/shadow thickening.
+             A text-shadow/text-stroke "double strike" can look fine on a
+             direct vector print but renders as thick, blurred text once a
+             different pipeline (e.g. an Android ESC/POS Bluetooth print
+             service) rasterizes the page into a bitmap first — the small
+             offset strokes get smeared together. Plain bold weight is
+             crisp across every printing path. */
           .receipt-plain * {
             color: #000 !important;
-            -webkit-text-stroke: 0.25px #000 !important;
-            text-shadow: 0.25px 0 0 currentColor, -0.25px 0 0 currentColor !important;
           }
         }
       `}</style>
