@@ -216,9 +216,12 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
         .r-brand p { font-size: 10px; font-weight: 700; margin: 2px 0 0; text-transform: uppercase; }
         .r-hr { border-top: 1px dashed #000; margin: 6px 0; }
         .r-hr-solid { border-top: 2px solid #000; border-top-style: solid; }
-        .r-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 700; }
-        .r-row > span:first-child { text-align: left; }
-        .r-row > span:last-child { text-align: right; white-space: nowrap; }
+        /* flex-wrap + flex-shrink:0 on the amount means a long label wraps
+           onto its own line instead of ever pushing the amount (the part
+           that must never be cut off) past the page edge. */
+        .r-row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 2px 8px; font-size: 11px; font-weight: 700; }
+        .r-row > span:first-child { text-align: left; flex: 1 1 auto; min-width: 0; }
+        .r-row > span:last-child { text-align: right; white-space: nowrap; flex-shrink: 0; }
         .r-line { font-size: 11px; font-weight: 700; margin: 2px 0; }
         .r-item { margin-bottom: 6px; }
         .r-item-name { font-size: 12px; font-weight: 900; margin: 0 0 1px; text-transform: uppercase; }
@@ -228,7 +231,12 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
         @media print {
           @page {
             margin: 0mm;
-            size: 80mm auto;
+            /* Let the OS/driver pick the page size rather than forcing one —
+               forcing a size that doesn't match what was actually selected
+               in the print dialog can cause the output to be scaled/cropped
+               unpredictably. The real safety net is the narrow max-width
+               on .receipt-plain below. */
+            size: auto;
           }
 
           /* Hide the whole app; only #print-container (moved to <body> by
@@ -269,9 +277,14 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
           .receipt-plain {
             display: block !important;
             width: 100% !important;
-            max-width: 72mm !important;
+            /* Thermal drivers often reserve hidden hardware margins the
+               nominal "80mm" paper size doesn't account for, so the real
+               printable area can be noticeably under 72mm. Staying well
+               inside that (52mm) sacrifices a little blank margin on a
+               full-width roll but guarantees nothing runs off the edge. */
+            max-width: 52mm !important;
             margin: 0 auto !important;
-            padding: 6px 4px !important;
+            padding: 4px 2px !important;
             color: #000 !important;
           }
 
