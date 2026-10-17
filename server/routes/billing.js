@@ -27,6 +27,18 @@ router.post('/', async (req, res) => {
             const billData = { ...req.body };
             const { items } = billData;
 
+            // Normalize each item's unit price into `price` (the field the
+            // Bill schema actually stores). The cart sends `sellingPrice`
+            // (products) or `rentalPrice` (rentals) — without this, the
+            // schema dropped the price on save and reprints showed ₹0.
+            billData.items = items.map(item => ({
+                id: item.id,
+                name: item.name,
+                type: item.type || 'product',
+                quantity: item.quantity,
+                price: Number(item.price ?? item.sellingPrice ?? item.rentalPrice ?? 0),
+            }));
+
             // 1. Check stock for all product items
             for (const item of items) {
                 if (item.type === 'product') {

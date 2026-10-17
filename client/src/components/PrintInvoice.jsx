@@ -15,7 +15,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto print:overflow-visible custom-scrollbar">
                     <div className="print-section bg-white">
-                        <div className="p-6 md:p-10 border-b-2 border-slate-100 flex justify-between items-center bg-white print:p-2 print:border-b">
+                        <div className="receipt-header p-6 md:p-10 border-b-2 border-slate-100 flex justify-between items-center bg-white print:p-2 print:border-b">
                             <div className="flex items-center">
                                 <div className="receipt-logo w-32 h-32 md:w-56 md:h-56 overflow-hidden flex items-center justify-center print:w-16 print:h-16">
                                     <img src={logo} alt="EYELUXE Logo" className="w-full scale-[2.2] object-contain mix-blend-multiply translate-y-[12%] translate-x-[-5%]" />
@@ -26,7 +26,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                                     <p className="text-[8px] md:text-[10px] text-slate-400 font-black mt-1 print:text-[7px] print:mt-0.5">Ph: <span className="text-slate-600">8078768999</span></p>
                                 </div>
                             </div>
-                            <div className="text-right">
+                            <div className="receipt-meta text-right">
                                 <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight print:text-xs">{bill?.title || 'INVOICE'}</h2>
                                 <div className="mt-1 md:mt-2 print:mt-0">
                                     <p className="text-xs md:text-sm text-slate-500 font-bold tracking-tight print:text-[8px]">#{bill?.invoiceNo || 'DRAFT'}</p>
@@ -35,13 +35,13 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                             </div>
                         </div>
 
-                        <div className="p-6 md:p-8 grid grid-cols-2 gap-6 md:gap-10 bg-white print:p-2 print:gap-2">
+                        <div className="receipt-info p-6 md:p-8 grid grid-cols-2 gap-6 md:gap-10 bg-white print:p-2 print:gap-2">
                             <div>
                                 <p className="text-[8px] md:text-[10px] uppercase font-black text-primary-500 tracking-[0.2em] mb-1 md:mb-2 print:mb-0 print:text-[7px]">Bill To</p>
                                 <h3 className="text-base md:text-lg font-bold text-slate-900 leading-tight print:text-[10px]">{customer.name}</h3>
                                 <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5 md:mt-1 print:text-[8px] print:mt-0">{customer.phone}</p>
                             </div>
-                            <div className="text-right">
+                            <div className="receipt-info-right text-right">
                                 <p className="text-[8px] md:text-[10px] uppercase font-black text-slate-400 tracking-[0.2em] mb-1 md:mb-2 print:mb-0 print:text-[7px]">Payment Info</p>
                                 <div className="inline-flex items-center gap-1.5 md:gap-2 px-2 md:px-2.5 py-0.5 md:py-1 bg-emerald-50 rounded-full border border-emerald-100 print:px-1 print:py-0">
                                     <span className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-emerald-500"></span>
@@ -70,9 +70,9 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                                                     <span className="text-[7px] md:text-[9px] font-black text-primary-400 uppercase tracking-widest print:text-[6px]">{item.rentalPrice < 0 ? 'Deduction' : (bill?.type || 'General Sale')}</span>
                                                 </td>
                                                 <td className="px-2 md:px-4 py-3 md:py-4 text-center text-slate-600 font-bold print:px-1 print:py-0.5 print:table-cell">{item.quantity}</td>
-                                                <td className="px-2 md:px-4 py-3 md:py-4 text-right text-slate-500 font-medium print:px-1 print:py-0.5 print:table-cell">₹{Math.abs(parseFloat(item.sellingPrice || item.rentalPrice || 0)).toLocaleString()}</td>
+                                                <td className="px-2 md:px-4 py-3 md:py-4 text-right text-slate-500 font-medium print:px-1 print:py-0.5 print:table-cell">₹{Math.abs(parseFloat(item.price ?? item.sellingPrice ?? item.rentalPrice ?? 0)).toLocaleString()}</td>
                                                 <td className={`px-4 md:px-6 py-3 md:py-4 text-right font-black ${item.rentalPrice < 0 ? 'text-emerald-600' : 'text-slate-900'} print:px-1 print:py-0.5 print:table-cell`}>
-                                                    {item.rentalPrice < 0 ? '-' : ''}₹{Math.abs(parseFloat(item.quantity * (item.sellingPrice || item.rentalPrice || 0))).toLocaleString()}
+                                                    {item.rentalPrice < 0 ? '-' : ''}₹{Math.abs(parseFloat(item.quantity * (item.price ?? item.sellingPrice ?? item.rentalPrice ?? 0))).toLocaleString()}
                                                 </td>
                                             </tr>
                                         ))}
@@ -162,8 +162,15 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             border: none !important;
             border-radius: 0 !important;
             width: 100% !important;
-            max-width: 72mm !important;
+            /* Slightly under the 72mm printable width as a safety margin so
+               content never runs into the physical edge of the paper. */
+            max-width: 68mm !important;
             margin: 0 auto !important;
+          }
+
+          /* Prevent padding from pushing any element past the paper width */
+          #print-container, #print-container * {
+            box-sizing: border-box !important;
           }
 
           * {
@@ -183,15 +190,21 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
           }
 
           /* Thermal printers are black-only: light greys print as faint dots,
-             so force solid black text and darker borders. */
+             so force solid black text, darker borders, and no light fills
+             that wash out contrast against the print head. */
           #print-container,
           #print-container * {
             color: #000 !important;
             border-color: #000 !important;
+            background-color: transparent !important;
             opacity: 1 !important;
           }
           #print-container * {
-            font-weight: 700 !important;
+            font-weight: 800 !important;
+            /* Faux double-strike: makes thin thermal-head strokes read as
+               solid black instead of grey, without changing layout size. */
+            text-shadow: 0.25px 0 0 currentColor, -0.25px 0 0 currentColor, 0 0.25px 0 currentColor, 0 -0.25px 0 currentColor !important;
+            -webkit-text-stroke: 0.2px #000 !important;
           }
 
           /* Force a clean, non-overlapping header in print. This beats both
@@ -226,6 +239,32 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
             max-height: none !important;
           }
 
+          /* Stack the header (logo+brand / invoice no+date) and the
+             Bill To / Payment Info row vertically instead of side-by-side.
+             A narrow thermal roll has no room for two columns, and the
+             right-hand column was getting clipped off the paper edge. */
+          #print-container .receipt-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 4px !important;
+          }
+          #print-container .receipt-meta {
+            width: 100% !important;
+            text-align: left !important;
+            margin-top: 2px !important;
+          }
+          #print-container .receipt-meta > div {
+            margin-top: 0 !important;
+          }
+          #print-container .receipt-info {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 6px !important;
+          }
+          #print-container .receipt-info-right {
+            text-align: left !important;
+          }
+
           /* 80mm thermal receipt: readable minimum sizes (the 6-7px sizes
              above are too small for a 203dpi thermal head). */
           #print-container .receipt-brand p,
@@ -242,11 +281,22 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
           }
           #print-container .receipt-brand h1 { font-size: 1.4rem !important; }
           #print-container .receipt-brand p { font-size: 9px !important; }
-          #print-container th, #print-container td { padding: 2px 1px !important; }
-          #print-container table { width: 100% !important; border-collapse: collapse !important; }
+
+          /* Fixed column widths so the Amount column can never be pushed
+             past the paper edge, no matter how long an item name is. */
+          #print-container table {
+            width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+          }
+          #print-container th:nth-child(1), #print-container td:nth-child(1) { width: 40% !important; word-break: break-word !important; }
+          #print-container th:nth-child(2), #print-container td:nth-child(2) { width: 15% !important; }
+          #print-container th:nth-child(3), #print-container td:nth-child(3) { width: 20% !important; }
+          #print-container th:nth-child(4), #print-container td:nth-child(4) { width: 25% !important; }
+          #print-container th, #print-container td { padding: 2px 1px !important; overflow-wrap: break-word !important; }
           #print-container tr { border-bottom: 1px dashed #000 !important; page-break-inside: avoid; }
           #print-container thead tr { border-bottom: 1px solid #000 !important; }
-          #print-container .bg-emerald-50 { background: transparent !important; border: 1px solid #000 !important; }
+          #print-container .bg-emerald-50 { border: 1px solid #000 !important; }
           #print-container .print\\:w-40 { width: 100% !important; }
           #print-container .text-base { font-size: 15px !important; }
         }
