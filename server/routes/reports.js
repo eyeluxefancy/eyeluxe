@@ -13,7 +13,10 @@ router.get('/dashboard', async (req, res) => {
         const [products, rentals, bills, expenses] = await Promise.all([
             Product.find().lean(),
             Rental.find({ status: 'Rented' }).lean(),
-            Bill.find({ date: { $gte: startOfYear } }).lean(),
+            // A cancelled sale must never count toward revenue — exclude it
+            // from every dashboard figure (it still exists in the DB with
+            // status:'Cancelled' for the full invoice history/audit trail).
+            Bill.find({ date: { $gte: startOfYear }, status: { $ne: 'Cancelled' } }).lean(),
             Expense.find().lean(),
         ]);
 
@@ -80,7 +83,7 @@ router.get('/dashboard', async (req, res) => {
 router.get('/analytics', async (req, res) => {
     try {
         const [bills, expenses] = await Promise.all([
-            Bill.find().lean(),
+            Bill.find({ status: { $ne: 'Cancelled' } }).lean(),
             Expense.find().lean(),
         ]);
 

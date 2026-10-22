@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { ShoppingCart, Plus, Minus, Trash2, Printer, Search, User, Phone, ShoppingBag, Receipt, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Printer, Search, User, Phone, ShoppingBag, Receipt, ChevronDown, Ban } from 'lucide-react';
 import PrintInvoice from '../components/PrintInvoice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -79,7 +79,11 @@ export default function Billing() {
         return matchesSearch && matchesPeriod;
     });
 
-    const filteredBillsTotal = filteredBills.reduce((sum, b) => sum + Number(b.total || 0), 0);
+    // A cancelled sale stays visible in the list (full history/audit trail)
+    // but must never count toward the displayed total.
+    const filteredBillsTotal = filteredBills
+        .filter(b => b.status !== 'Cancelled')
+        .reduce((sum, b) => sum + Number(b.total || 0), 0);
 
     const addToCart = (product) => {
         const existing = cart.find(item => item.id === product.id);
@@ -142,14 +146,27 @@ export default function Billing() {
         }
     };
 
-    const deleteBill = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this bill record?")) return;
+    // Cancel a sale. This never hard-deletes the invoice — it stays visible
+    // in the list with a Cancelled badge (full financial/audit history is
+    // preserved). Whether stock is restored depends on an explicit answer
+    // to "did the goods come back to the shop?", never an automatic guess.
+    const cancelBill = async (bill) => {
+        if (bill.status === 'Cancelled') return; // already cancelled, nothing to do
+
+        if (!window.confirm(`Cancel invoice #${bill.invoiceNo}? This cannot be undone.`)) return;
+
+        const restoreStock = window.confirm(
+            "Were the item(s) returned to the shop?\n\n" +
+            "Click OK to restore them to stock.\n" +
+            "Click Cancel if the goods were NOT returned (stock stays as sold)."
+        );
+
         try {
-            await axios.delete(`${API_URL}/billing/${id}`);
+            await axios.put(`${API_URL}/billing/${bill.id}/cancel`, { restoreStock });
             fetchBills();
         } catch (err) {
             console.error(err);
-            alert("Failed to delete bill");
+            alert(err.response?.data?.error || "Failed to cancel invoice");
         }
     };
 
@@ -464,13 +481,16 @@ export default function Billing() {
                                     <th className="px-8 py-5">Invoice No</th>
                                     <th className="px-6 py-5">Date</th>
                                     <th className="px-6 py-5">Customer</th>
+                                    <th className="px-6 py-5">Status</th>
                                     <th className="px-6 py-5 text-right">Total</th>
                                     <th className="px-8 py-5 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {filteredBills.map(bill => (
-                                    <tr key={bill.id} className="hover:bg-slate-50/50 transition-colors group">
+                                {filteredBills.map(bill => {
+                                    const isCancelled = bill.status === 'Cancelled';
+                                    return (
+                                    <tr key={bill.id} className={`hover:bg-slate-50/50 transition-colors group ${isCancelled ? 'opacity-50' : ''}`}>
                                         <td className="px-8 py-4">
                                             <span className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase shadow-sm">
                                                 {bill.invoiceNo || 'N/A'}
@@ -485,7 +505,18 @@ export default function Billing() {
                                                 <span className="text-[10px] text-slate-400 font-bold tracking-tight mt-0.5">{bill.customerPhone}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 font-black text-primary-600 text-base text-right font-mono italic">₹{bill.total?.toLocaleString()}</td>
+                                        <td className="px-6 py-4">
+                                            {isCancelled ? (
+                                                <span className="inline-flex px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-50 text-rose-600 border border-rose-100" title={bill.cancelReason || undefined}>
+                                                    Cancelled{bill.stockRestored ? ' · Restocked' : ''}
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                    Completed
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className={`px-6 py-4 font-black text-base text-right font-mono italic ${isCancelled ? 'text-slate-400 line-through' : 'text-primary-600'}`}>₹{bill.total?.toLocaleString()}</td>
                                         <td className="px-8 py-4 text-right">
                                             <div className="flex justify-end gap-2">
                                                 <button
@@ -495,17 +526,20 @@ export default function Billing() {
                                                 >
                                                     <Printer className="w-4 h-4 lg:w-5 lg:h-5" />
                                                 </button>
-                                                <button
-                                                    onClick={() => deleteBill(bill.id)}
-                                                    className="p-2.5 bg-slate-50 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl border border-slate-100 transition-all active:scale-95"
-                                                    title="Delete Record"
-                                                >
-                                                    <Trash2 className="w-4 h-4 lg:w-5 lg:h-5" />
-                                                </button>
+                                                {!isCancelled && (
+                                                    <button
+                                                        onClick={() => cancelBill(bill)}
+                                                        className="p-2.5 bg-slate-50 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl border border-slate-100 transition-all active:scale-95"
+                                                        title="Cancel Sale"
+                                                    >
+                                                        <Ban className="w-4 h-4 lg:w-5 lg:h-5" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                         {filteredBills.length === 0 && (

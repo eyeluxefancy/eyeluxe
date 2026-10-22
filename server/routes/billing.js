@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import Bill from '../models/Bill.js';
 import Product from '../models/Product.js';
+import StockMovement from '../models/StockMovement.js';
 
 const router = express.Router();
 
@@ -63,7 +64,10 @@ router.post('/', async (req, res) => {
                 if (!Number.isNaN(n)) next = n + 1;
             }
             billData.invoiceNo = `INV-${String(next).padStart(5, '0')}`;
-            billData.date = billData.date || new Date().toISOString();
+            // Always use the server's own clock for the official invoice date.
+            // A client device's clock/timezone can drift or be misconfigured;
+            // the server is the single source of truth for this record.
+            billData.date = new Date().toISOString();
 
             // 3. Decrement stock for each product item
             for (const item of items) {
@@ -78,6 +82,21 @@ router.post('/', async (req, res) => {
 
             // 4. Create the bill
             const [bill] = await Bill.create([billData], { session });
+
+            // 5. Audit trail: record the stock movement for each product item
+            const movements = items
+                .filter(item => item.type === 'product')
+                .map(item => ({
+                    productId: item.id,
+                    productName: item.name,
+                    type: 'sale',
+                    quantity: Math.abs(Number(item.quantity) || 0),
+                    invoiceId: bill._id.toString(),
+                    invoiceNo: bill.invoiceNo,
+                }));
+            if (movements.length) {
+                await StockMovement.create(movements, { session });
+            }
 
             await session.commitTransaction();
             session.endSession();
@@ -95,7 +114,89 @@ router.post('/', async (req, res) => {
     }
 });
 
-// Delete a bill
+// Cancel a sale. Unlike DELETE, this never erases the invoice — it marks
+// it Cancelled so the financial/stock history stays intact. Whether stock
+// is restored depends on `restoreStock`, an explicit confirmation from the
+// person cancelling the sale (did the goods actually come back to the
+// shop?) rather than an automatic blind restore.
+router.put('/:id/cancel', async (req, res) => {
+    const { id } = req.params;
+    const restoreStock = !!req.body.restoreStock;
+    const reason = (req.body.reason || '').toString().slice(0, 500);
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        // Atomic + conditional: only matches a bill that is NOT already
+        // Cancelled. If two cancel requests race (double-click, retry,
+        // refresh), only the first one can ever match and restore stock —
+        // the second finds nothing to update and reports "already cancelled"
+        // instead of restoring stock twice.
+        const bill = await Bill.findOneAndUpdate(
+            { _id: id, status: { $ne: 'Cancelled' } },
+            {
+                $set: {
+                    status: 'Cancelled',
+                    cancelledAt: new Date(),
+                    stockRestored: restoreStock,
+                    cancelReason: reason,
+                },
+            },
+            { session, new: false } // return the PRE-update doc so we still have its items
+        );
+
+        if (!bill) {
+            // Either the bill doesn't exist, or it was already cancelled.
+            const existing = await Bill.findById(id).session(session).lean();
+            await session.abortTransaction();
+            session.endSession();
+            if (!existing) {
+                return res.status(404).json({ error: 'Invoice not found' });
+            }
+            return res.status(409).json({ error: 'This invoice has already been cancelled', status: existing.status });
+        }
+
+        if (restoreStock) {
+            const productItems = (bill.items || []).filter(item => item.type === 'product');
+            for (const item of productItems) {
+                await Product.findByIdAndUpdate(
+                    item.id,
+                    { $inc: { stock: Math.abs(Number(item.quantity) || 0) } },
+                    { session }
+                );
+            }
+            if (productItems.length) {
+                await StockMovement.create(
+                    productItems.map(item => ({
+                        productId: item.id,
+                        productName: item.name,
+                        type: 'restore',
+                        quantity: Math.abs(Number(item.quantity) || 0),
+                        invoiceId: bill._id.toString(),
+                        invoiceNo: bill.invoiceNo,
+                    })),
+                    { session }
+                );
+            }
+        }
+
+        await session.commitTransaction();
+        session.endSession();
+
+        const updated = await Bill.findById(id).lean();
+        res.json({ ...updated, id: updated._id.toString() });
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete a bill — a true, permanent removal with no stock impact. Prefer
+// the Cancel endpoint above for normal day-to-day sale cancellations; this
+// stays available for correcting a genuine mistake (e.g. a duplicate or
+// test entry) where no stock reconciliation is needed either way.
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
