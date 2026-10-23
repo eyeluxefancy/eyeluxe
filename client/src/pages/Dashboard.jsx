@@ -12,6 +12,7 @@ import {
     ArrowUpRight,
     Search
 } from 'lucide-react';
+import { formatDate } from '../utils/date';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -115,7 +116,7 @@ export default function Dashboard() {
                     <div className="leading-none">
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Today</p>
                         <p className="text-sm font-black text-slate-800 tracking-tight mt-0.5">
-                            {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            {formatDate(new Date(), { day: '2-digit', month: 'short', year: 'numeric' })}
                         </p>
                     </div>
                 </div>
@@ -283,7 +284,7 @@ export default function Dashboard() {
                                     </div>
                                     <div className="text-right">
                                         <p className="font-black text-primary-600 italic">₹{bill.total?.toLocaleString()}</p>
-                                        <p className="text-[9px] text-slate-300 font-black uppercase tracking-tight mt-0.5">{new Date(bill.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</p>
+                                        <p className="text-[9px] text-slate-300 font-black uppercase tracking-tight mt-0.5">{formatDate(bill.date, { day: '2-digit', month: 'short' })}</p>
                                     </div>
                                 </div>
                             ))
@@ -423,7 +424,7 @@ export default function Dashboard() {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <p className="text-[10px] font-black text-slate-500">{new Date(bill.date).toLocaleDateString('en-GB')}</p>
+                                                    <p className="text-[10px] font-black text-slate-500">{formatDate(bill.date)}</p>
                                                 </td>
                                                 <td className="px-6 py-5">
                                                     <div className="flex flex-col">

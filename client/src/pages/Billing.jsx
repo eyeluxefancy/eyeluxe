@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { ShoppingCart, Plus, Minus, Trash2, Printer, Search, User, Phone, ShoppingBag, Receipt, ChevronDown, Ban, Pencil, X } from 'lucide-react';
 import PrintInvoice from '../components/PrintInvoice';
+import { formatDate } from '../utils/date';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -642,7 +643,7 @@ export default function Billing() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-xs font-bold text-slate-500">
-                                            {new Date(bill.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            {formatDate(bill.date, { day: '2-digit', month: 'short', year: 'numeric' })}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">

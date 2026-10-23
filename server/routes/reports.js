@@ -6,9 +6,26 @@ import Expense from '../models/Expense.js';
 
 const router = express.Router();
 
+// Cloud hosts (Render included) typically run containers in UTC regardless
+// of where the shop actually is. Computing "today"/"this week" from the
+// SERVER's local clock would silently roll the day boundary over 5.5 hours
+// early/late for an India shop. These helpers pin every boundary to IST
+// (UTC+5:30, no DST) no matter what timezone the Node process itself is in.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+function istShifted(date = new Date()) {
+    return new Date(date.getTime() + IST_OFFSET_MS);
+}
+// Returns the UTC instant corresponding to IST midnight on the IST
+// calendar date that `date` currently falls on.
+function istMidnight(date = new Date()) {
+    const s = istShifted(date);
+    return new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate(), 0, 0, 0) - IST_OFFSET_MS);
+}
+
 router.get('/dashboard', async (req, res) => {
     try {
-        const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
+        const istNow = istShifted();
+        const startOfYear = new Date(Date.UTC(istNow.getUTCFullYear(), 0, 1) - IST_OFFSET_MS).toISOString();
 
         // Bills are fetched WITHOUT excluding Cancelled ones here: sales
         // totals must exclude them, but the cash-closing reconciliation
@@ -26,14 +43,12 @@ router.get('/dashboard', async (req, res) => {
         // Total Stock Value
         const totalStockValue = products.reduce((acc, p) => acc + ((p.purchasePrice || 0) * (p.stock || 0)), 0);
 
-        // Sales Calculations
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        // Sales Calculations — all boundaries are IST calendar days.
+        const today = istMidnight();
 
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
+        const startOfWeek = new Date(today.getTime() - istShifted(today).getUTCDay() * 24 * 60 * 60 * 1000);
 
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfMonth = new Date(Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), 1) - IST_OFFSET_MS);
 
         const filterByDate = (arr, dateField, startDate) =>
             arr.filter(item => item[dateField] && new Date(item[dateField]) >= startDate);

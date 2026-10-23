@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, Plus, Edit2, Trash2, ShoppingBag, Download, Package } from 'lucide-react';
+import { formatDate } from '../utils/date';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -53,7 +54,7 @@ export default function Inventory() {
                 p.mrp,
                 p.sellingPrice,
                 p.stock,
-                p.expiryDate ? new Date(p.expiryDate).toLocaleDateString('en-GB') : 'N/A'
+                p.expiryDate ? formatDate(p.expiryDate) : 'N/A'
             ].join(','))
         ].join('\n');
 
@@ -232,7 +233,7 @@ export default function Inventory() {
                                         {product.expiryDate ? (
                                             <div className="flex flex-col">
                                                 <span className={`text-[10px] lg:text-sm font-semibold ${new Date(product.expiryDate) < new Date(new Date().setDate(new Date().getDate() + 30)) ? 'text-rose-600' : 'text-slate-500'}`}>
-                                                    {new Date(product.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
+                                                    {formatDate(product.expiryDate, { day: '2-digit', month: 'short', year: '2-digit' })}
                                                 </span>
                                                 {new Date(product.expiryDate) < new Date(new Date().setDate(new Date().getDate() + 30)) && (
                                                     <span className="text-[8px] lg:text-[10px] font-black uppercase text-rose-500 animate-pulse tracking-tighter">

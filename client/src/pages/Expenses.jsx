@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Wallet, Plus, Edit2, Trash2, Search, Download, Receipt, TrendingDown, CalendarDays } from 'lucide-react';
+import { formatDate } from '../utils/date';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -67,7 +68,7 @@ export default function Expenses() {
         const csvRows = [
             headers.join(','),
             ...filteredExpenses.map(e => [
-                new Date(e.date).toLocaleDateString('en-GB'),
+                formatDate(e.date),
                 `"${e.category}"`,
                 e.amount,
                 `"${e.notes || ''}"`
@@ -235,7 +236,7 @@ export default function Expenses() {
                                 </tr>
                             ) : filteredExpenses.map(expense => (
                                 <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-8 py-4 text-sm font-bold text-slate-700 whitespace-nowrap">{new Date(expense.date).toLocaleDateString('en-GB')}</td>
+                                    <td className="px-8 py-4 text-sm font-bold text-slate-700 whitespace-nowrap">{formatDate(expense.date)}</td>
                                     <td className="px-6 py-4">
                                         <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${categoryStyles[expense.category] || categoryStyles.Others}`}>{expense.category || 'Others'}</span>
                                     </td>

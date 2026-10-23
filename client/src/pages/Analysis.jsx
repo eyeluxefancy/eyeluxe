@@ -12,6 +12,7 @@ import {
     Area
 } from 'recharts';
 import { Calendar, Download, TrendingUp } from 'lucide-react';
+import { formatDate } from '../utils/date';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -54,8 +55,8 @@ export default function Analysis() {
 
     const exportToCSV = () => {
         const headers = ['Date', 'Type', 'Amount'];
-        const salesData = data.salesChart.map(s => [new Date(s.date).toLocaleDateString('en-GB'), 'Revenue', s.amount]);
-        const expenseData = data.expensesChart.map(e => [new Date(e.date).toLocaleDateString('en-GB'), 'Expense', e.amount]);
+        const salesData = data.salesChart.map(s => [formatDate(s.date), 'Revenue', s.amount]);
+        const expenseData = data.expensesChart.map(e => [formatDate(e.date), 'Expense', e.amount]);
 
         const csvRows = [
             headers.join(','),
@@ -74,7 +75,7 @@ export default function Analysis() {
         document.body.removeChild(a);
     };
 
-    const fmtDate = (d) => new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const fmtDate = (d) => formatDate(d, { day: '2-digit', month: 'short' });
 
     return (
         <div className="space-y-6 lg:space-y-8">

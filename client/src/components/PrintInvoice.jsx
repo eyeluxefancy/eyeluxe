@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import logo from '../assets/logo.png';
+import { formatDate } from '../utils/date';
 
 // Resolve a line item's unit price, whichever field the data happens to
 // carry: a freshly-created bill passes sellingPrice/rentalPrice straight
@@ -13,7 +14,7 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
 
     const subtotal = parseFloat(total) + parseFloat(bill?.extraDiscount || 0);
     const discount = parseFloat(bill?.extraDiscount || 0);
-    const dateStr = new Date(bill?.date || new Date()).toLocaleDateString('en-GB');
+    const dateStr = formatDate(bill?.date || new Date());
 
     // We use a Portal to move the invoice to the end of <body>.
     // This allows us to hide the entire #root app during print WITHOUT hiding the invoice.

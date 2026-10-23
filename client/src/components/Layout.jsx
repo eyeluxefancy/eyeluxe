@@ -54,7 +54,7 @@ export default function Layout() {
                                 WELCOME TO <span className="text-primary-600">EYELUXE</span> <span className="hidden sm:inline">PORTAL</span>
                             </h3>
                             <p className="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Kolkata' })}
                             </p>
                         </div>
                     </div>
