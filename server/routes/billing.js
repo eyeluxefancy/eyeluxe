@@ -95,7 +95,7 @@ router.post('/', async (req, res) => {
                     invoiceNo: bill.invoiceNo,
                 }));
             if (movements.length) {
-                await StockMovement.create(movements, { session });
+                await StockMovement.create(movements, { session, ordered: true });
             }
 
             await session.commitTransaction();
@@ -176,7 +176,7 @@ router.put('/:id/cancel', async (req, res) => {
                         invoiceId: bill._id.toString(),
                         invoiceNo: bill.invoiceNo,
                     })),
-                    { session }
+                    { session, ordered: true }
                 );
             }
         }
