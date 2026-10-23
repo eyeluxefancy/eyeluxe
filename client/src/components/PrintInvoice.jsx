@@ -57,6 +57,12 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                                     <span className="text-[7px] md:text-[9px] font-black text-emerald-700 uppercase tracking-wider">PAID</span>
                                 </div>
                                 <p className="text-[10px] md:text-xs text-slate-600 font-bold mt-1.5 md:mt-2">Method: <span className="text-slate-900">{bill?.paymentMethod || 'Cash / UPI'}</span></p>
+                                {bill?.paymentMethod === 'Split' && (
+                                    <p className="text-[9px] md:text-[11px] text-slate-500 font-bold mt-0.5">Cash ₹{bill?.cashAmount || 0} + UPI ₹{bill?.upiAmount || 0}</p>
+                                )}
+                                {bill?.balanceDue > 0 && (
+                                    <p className="text-[9px] md:text-[11px] text-rose-500 font-black mt-0.5">Balance Due: ₹{bill.balanceDue}</p>
+                                )}
                             </div>
                         </div>
 
@@ -160,6 +166,12 @@ export default function PrintInvoice({ bill, customer, items, total, onClose }) 
                     <span className="r-pay-status">
                         <span className="r-pay-badge">● PAID</span>
                         <span className="r-pay-method">Method: {bill?.paymentMethod || 'Cash'}</span>
+                        {bill?.paymentMethod === 'Split' && (
+                            <span className="r-pay-method">Cash ₹{bill?.cashAmount || 0} + UPI ₹{bill?.upiAmount || 0}</span>
+                        )}
+                        {bill?.balanceDue > 0 && (
+                            <span className="r-pay-method">Balance Due: ₹{bill.balanceDue}</span>
+                        )}
                     </span>
                 </div>
 

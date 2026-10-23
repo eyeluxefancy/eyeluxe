@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { ShoppingCart, Plus, Minus, Trash2, Printer, Search, User, Phone, ShoppingBag, Receipt, ChevronDown, Ban } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Printer, Search, User, Phone, ShoppingBag, Receipt, ChevronDown, Ban, Pencil, X } from 'lucide-react';
 import PrintInvoice from '../components/PrintInvoice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -14,10 +14,20 @@ export default function Billing() {
     const [showPrint, setShowPrint] = useState(null);
     const [extraDiscount, setExtraDiscount] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState('Cash');
+    const [splitCash, setSplitCash] = useState('');
+    const [splitUpi, setSplitUpi] = useState('');
     const [bills, setBills] = useState([]);
     const [showInvoices, setShowInvoices] = useState(false);
     const [invoiceSearch, setInvoiceSearch] = useState('');
     const [invoicePeriod, setInvoicePeriod] = useState('all');
+    const [editingBill, setEditingBill] = useState(null); // the bill object being edited
+    const [editItems, setEditItems] = useState([]);
+    const [editDiscount, setEditDiscount] = useState(0);
+    const [editPaymentMethod, setEditPaymentMethod] = useState('Cash');
+    const [editSplitCash, setEditSplitCash] = useState('');
+    const [editSplitUpi, setEditSplitUpi] = useState('');
+    const [editReason, setEditReason] = useState('');
+    const [editSaving, setEditSaving] = useState(false);
     const invoicesRef = useRef(null);
 
     const toggleInvoices = () => {
@@ -118,8 +128,34 @@ export default function Billing() {
         return calculateSubtotal() - (parseFloat(extraDiscount) || 0);
     };
 
+    // Resolves the Cash/UPI amounts to actually send, given the current
+    // payment-method toggle. Split requires the two to add up to no more
+    // than the total; under the total is allowed (stored as balance due).
+    const resolveSplit = (total, method, cashVal, upiVal) => {
+        if (method === 'Split') {
+            const cashAmount = parseFloat(cashVal) || 0;
+            const upiAmount = parseFloat(upiVal) || 0;
+            if (cashAmount + upiAmount > total + 0.5) {
+                return { error: `Cash + UPI (₹${cashAmount + upiAmount}) exceeds the total (₹${total})` };
+            }
+            return { cashAmount, upiAmount };
+        }
+        if (method === 'UPI') return { cashAmount: 0, upiAmount: total };
+        return { cashAmount: total, upiAmount: 0 };
+    };
+
+    const splitBalance = () => {
+        const total = calculateTotal();
+        const paid = (parseFloat(splitCash) || 0) + (parseFloat(splitUpi) || 0);
+        return total - paid;
+    };
+
     const handleSubmit = async () => {
         if (!customer.name || cart.length === 0) return alert("Please fill customer details and add items");
+
+        const total = calculateTotal();
+        const split = resolveSplit(total, paymentMethod, splitCash, splitUpi);
+        if (split.error) return alert(split.error);
 
         setLoading(true);
         try {
@@ -129,8 +165,9 @@ export default function Billing() {
                 items: cart,
                 subtotal: calculateSubtotal(),
                 extraDiscount: parseFloat(extraDiscount) || 0,
-                total: calculateTotal(),
-                paymentMethod: paymentMethod,
+                total,
+                cashAmount: split.cashAmount,
+                upiAmount: split.upiAmount,
                 date: new Date().toISOString()
             });
             setShowPrint({ ...res.data, customerInfo: customer, cartItems: cart });
@@ -138,6 +175,8 @@ export default function Billing() {
             setCustomer({ name: '', phone: '' });
             setExtraDiscount(0);
             setPaymentMethod('Cash');
+            setSplitCash('');
+            setSplitUpi('');
             fetchBills();
         } catch (err) {
             alert(err.response?.data?.error || "Billing failed");
@@ -167,6 +206,74 @@ export default function Billing() {
         } catch (err) {
             console.error(err);
             alert(err.response?.data?.error || "Failed to cancel invoice");
+        }
+    };
+
+    const openEdit = (bill) => {
+        setEditingBill(bill);
+        setEditItems((bill.items || []).map(i => ({ ...i })));
+        setEditDiscount(bill.extraDiscount || 0);
+        setEditPaymentMethod(bill.paymentMethod === 'UPI' ? 'UPI' : bill.paymentMethod === 'Split' ? 'Split' : 'Cash');
+        setEditSplitCash(bill.cashAmount || 0);
+        setEditSplitUpi(bill.upiAmount || 0);
+        setEditReason('');
+    };
+
+    const closeEdit = () => setEditingBill(null);
+
+    const editSubtotal = () => editItems.reduce((acc, i) => acc + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
+    const editTotal = () => Math.max(0, editSubtotal() - (parseFloat(editDiscount) || 0));
+
+    const editChangeQty = (idx, delta) => {
+        setEditItems(prev => prev.flatMap((item, i) => {
+            if (i !== idx) return [item];
+            const nextQty = (Number(item.quantity) || 0) + delta;
+            if (nextQty <= 0) return [];
+            return [{ ...item, quantity: nextQty }];
+        }));
+    };
+
+    const editRemoveItem = (idx) => setEditItems(prev => prev.filter((_, i) => i !== idx));
+
+    const editAddProduct = (e) => {
+        const productId = e.target.value;
+        if (!productId) return;
+        const product = products.find(p => p.id === productId);
+        if (!product) return;
+        setEditItems(prev => {
+            const existing = prev.find(i => i.id === productId);
+            if (existing) {
+                return prev.map(i => i.id === productId ? { ...i, quantity: (Number(i.quantity) || 0) + 1 } : i);
+            }
+            return [...prev, { id: product.id, name: product.name, type: 'product', quantity: 1, price: product.sellingPrice }];
+        });
+        e.target.value = '';
+    };
+
+    const saveEdit = async () => {
+        if (!editingBill) return;
+        const total = editTotal();
+        const split = resolveSplit(total, editPaymentMethod, editSplitCash, editSplitUpi);
+        if (split.error) return alert(split.error);
+        if (!editReason.trim()) return alert("Please enter a reason for this edit (kept in the audit trail)");
+
+        setEditSaving(true);
+        try {
+            await axios.put(`${API_URL}/billing/${editingBill.id}/edit`, {
+                items: editItems,
+                extraDiscount: parseFloat(editDiscount) || 0,
+                total,
+                cashAmount: split.cashAmount,
+                upiAmount: split.upiAmount,
+                reason: editReason.trim(),
+            });
+            closeEdit();
+            fetchBills();
+        } catch (err) {
+            console.error(err);
+            alert(err.response?.data?.error || "Failed to save edit");
+        } finally {
+            setEditSaving(false);
         }
     };
 
@@ -397,7 +504,7 @@ export default function Billing() {
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Payment Method</span>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-3 gap-2">
                                     <button
                                         onClick={() => setPaymentMethod('Cash')}
                                         className={`py-2 rounded-xl text-[10px] font-black transition-all border ${paymentMethod === 'Cash' ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-900/40' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
@@ -410,7 +517,45 @@ export default function Billing() {
                                     >
                                         UPI
                                     </button>
+                                    <button
+                                        onClick={() => setPaymentMethod('Split')}
+                                        className={`py-2 rounded-xl text-[10px] font-black transition-all border ${paymentMethod === 'Split' ? 'bg-primary-600 border-primary-600 text-white shadow-lg shadow-primary-900/40' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}
+                                    >
+                                        SPLIT
+                                    </button>
                                 </div>
+                                {paymentMethod === 'Split' && (
+                                    <div className="space-y-2 bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash (₹)</span>
+                                            <input
+                                                type="number"
+                                                className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 text-sm font-bold text-right text-white outline-none"
+                                                value={splitCash}
+                                                onChange={(e) => setSplitCash(e.target.value)}
+                                                placeholder="0"
+                                                min="0"
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">UPI (₹)</span>
+                                            <input
+                                                type="number"
+                                                className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-primary-500 text-sm font-bold text-right text-white outline-none"
+                                                value={splitUpi}
+                                                onChange={(e) => setSplitUpi(e.target.value)}
+                                                placeholder="0"
+                                                min="0"
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-700">
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Balance Due</span>
+                                            <span className={`text-sm font-black ${splitBalance() > 0.5 ? 'text-amber-400' : splitBalance() < -0.5 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                ₹{splitBalance().toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex justify-between text-lg pt-2">
@@ -528,6 +673,15 @@ export default function Billing() {
                                                 </button>
                                                 {!isCancelled && (
                                                     <button
+                                                        onClick={() => openEdit(bill)}
+                                                        className="p-2.5 bg-slate-50 text-slate-500 hover:bg-amber-50 hover:text-amber-600 rounded-xl border border-slate-100 transition-all active:scale-95"
+                                                        title="Edit Invoice"
+                                                    >
+                                                        <Pencil className="w-4 h-4 lg:w-5 lg:h-5" />
+                                                    </button>
+                                                )}
+                                                {!isCancelled && (
+                                                    <button
                                                         onClick={() => cancelBill(bill)}
                                                         className="p-2.5 bg-slate-50 text-slate-500 hover:bg-rose-50 hover:text-rose-600 rounded-xl border border-slate-100 transition-all active:scale-95"
                                                         title="Cancel Sale"
@@ -554,6 +708,112 @@ export default function Billing() {
                         )}
                     </div>
                 </div>
+                )}
+                {editingBill && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                        <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+                            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center shrink-0">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Edit Invoice #{editingBill.invoiceNo}</h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Stock only adjusts by the difference — never double-counted</p>
+                                </div>
+                                <button onClick={closeEdit} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-5">
+                                <div className="space-y-2">
+                                    {editItems.map((item, idx) => (
+                                        <div key={`${item.id}-${idx}`} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-bold text-sm text-slate-800 truncate">{item.name}</p>
+                                                <p className="text-[11px] text-slate-400">₹{item.price} each</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-slate-200 shrink-0">
+                                                <button onClick={() => editChangeQty(idx, -1)} className="w-7 h-7 rounded-md bg-slate-100 flex items-center justify-center hover:bg-rose-100 hover:text-rose-600">
+                                                    <Minus className="w-3.5 h-3.5" />
+                                                </button>
+                                                <span className="w-7 text-center text-sm font-black tabular-nums">{item.quantity}</span>
+                                                <button onClick={() => editChangeQty(idx, 1)} className="w-7 h-7 rounded-md bg-primary-600 text-white flex items-center justify-center hover:bg-primary-700">
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                            <div className="w-16 text-right shrink-0 font-black text-sm text-slate-700">₹{(item.price * item.quantity).toLocaleString()}</div>
+                                            <button onClick={() => editRemoveItem(idx)} className="text-slate-400 hover:text-rose-500 shrink-0">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <select
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none"
+                                    defaultValue=""
+                                    onChange={editAddProduct}
+                                >
+                                    <option value="" disabled>+ Add a product to this invoice...</option>
+                                    {products.map(p => <option key={p.id} value={p.id}>{p.name} (₹{p.sellingPrice})</option>)}
+                                </select>
+
+                                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Extra Discount (₹)</span>
+                                    <input
+                                        type="number"
+                                        className="w-24 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-bold text-right outline-none"
+                                        value={editDiscount}
+                                        onChange={(e) => setEditDiscount(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['Cash', 'UPI', 'Split'].map(m => (
+                                        <button
+                                            key={m}
+                                            onClick={() => setEditPaymentMethod(m)}
+                                            className={`py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${editPaymentMethod === m ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                                        >
+                                            {m}
+                                        </button>
+                                    ))}
+                                </div>
+                                {editPaymentMethod === 'Split' && (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash (₹)</label>
+                                            <input type="number" className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold outline-none" value={editSplitCash} onChange={(e) => setEditSplitCash(e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">UPI (₹)</label>
+                                            <input type="number" className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold outline-none" value={editSplitUpi} onChange={(e) => setEditSplitUpi(e.target.value)} />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for edit (required)</label>
+                                    <input
+                                        type="text"
+                                        className="w-full mt-1 px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none"
+                                        value={editReason}
+                                        onChange={(e) => setEditReason(e.target.value)}
+                                        placeholder="e.g. customer swapped item"
+                                    />
+                                </div>
+
+                                <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                                    <span className="text-sm font-bold text-slate-500">New Total</span>
+                                    <span className="text-2xl font-black text-primary-600">₹{editTotal().toLocaleString()}</span>
+                                </div>
+                            </div>
+                            <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/50 flex gap-4 shrink-0">
+                                <button onClick={closeEdit} className="flex-1 px-8 py-4 bg-white border border-slate-200 text-slate-600 rounded-[1.25rem] text-xs font-black uppercase tracking-widest">
+                                    Cancel
+                                </button>
+                                <button onClick={saveEdit} disabled={editSaving} className="flex-1 px-8 py-4 bg-primary-600 text-white rounded-[1.25rem] text-xs font-black uppercase tracking-widest disabled:opacity-50">
+                                    {editSaving ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
                 {showPrint && (
                     <PrintInvoice

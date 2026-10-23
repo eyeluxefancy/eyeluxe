@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Plus, Calendar, User, Phone, CheckCircle2, AlertCircle, Printer, X, Download, Edit2, Trash2 } from 'lucide-react';
+import { Search, Plus, User, Phone, AlertCircle, Printer, X, Download, Edit2, Trash2 } from 'lucide-react';
 import PrintInvoice from '../components/PrintInvoice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -13,27 +13,38 @@ export default function Rentals() {
     const [showPrint, setShowPrint] = useState(null);
     const [activeTab, setActiveTab] = useState('Rented');
     const [editingId, setEditingId] = useState(null);
-    const [dateFilter, setDateFilter] = useState('');
     const [formData, setFormData] = useState({
         ornamentName: '',
-        dailyPrice: '',
+        rentalPrice: '',
         advanceAmount: '',
         customerName: '',
         customerPhone: '',
-        startDate: new Date().toISOString().split('T')[0],
-        expectedReturnDate: '',
         extraDiscount: 0,
-        paymentMethod: 'Cash'
+        paymentMethod: 'Cash',
+        splitCash: '',
+        splitUpi: '',
     });
+    const [settleRental, setSettleRental] = useState(null);
+    const [settleMethod, setSettleMethod] = useState('Cash');
+    const [settleCash, setSettleCash] = useState('');
+    const [settleUpi, setSettleUpi] = useState('');
 
-    const calculateSubtotal = () => {
-        if (!formData.startDate || !formData.expectedReturnDate || !formData.dailyPrice) return 0;
-        const start = new Date(formData.startDate);
-        const end = new Date(formData.expectedReturnDate);
-        const diffTime = Math.abs(end - start);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; // Minimum 1 day
-        return diffDays * parseFloat(formData.dailyPrice);
+    // Resolves Cash/UPI amounts for a given "due" value, same rule as
+    // Billing: the two must never add up to more than what's due.
+    const resolveSplit = (due, method, cashVal, upiVal) => {
+        if (method === 'Split') {
+            const cashAmount = parseFloat(cashVal) || 0;
+            const upiAmount = parseFloat(upiVal) || 0;
+            if (cashAmount + upiAmount > due + 0.5) {
+                return { error: `Cash + UPI (₹${cashAmount + upiAmount}) exceeds ₹${due}` };
+            }
+            return { cashAmount, upiAmount };
+        }
+        if (method === 'UPI') return { cashAmount: 0, upiAmount: due };
+        return { cashAmount: due, upiAmount: 0 };
     };
+
+    const calculateSubtotal = () => parseFloat(formData.rentalPrice) || 0;
 
     const calculateTotal = () => {
         return calculateSubtotal() - (parseFloat(formData.extraDiscount) || 0);
@@ -49,7 +60,7 @@ export default function Rentals() {
     };
 
     const exportToCSV = () => {
-        const headers = ['ID', 'Ornament', 'Customer Name', 'Phone', 'Price', 'Advance', 'Extra Discount', 'Status', 'Due Date'];
+        const headers = ['ID', 'Ornament', 'Customer Name', 'Phone', 'Price', 'Advance', 'Extra Discount', 'Status'];
         const csvRows = [
             headers.join(','),
             ...filteredRentals.map(r => [
@@ -61,7 +72,6 @@ export default function Rentals() {
                 r.advanceAmount || 0,
                 r.extraDiscount || 0,
                 r.status,
-                new Date(r.expectedReturnDate).toLocaleDateString('en-GB')
             ].join(','))
         ].join('\n');
 
@@ -84,14 +94,14 @@ export default function Rentals() {
         setEditingId(rental.id);
         setFormData({
             ornamentName: rental.ornamentName || '',
-            dailyPrice: rental.dailyPrice || '',
+            rentalPrice: rental.rentalPrice || '',
             advanceAmount: rental.advanceAmount || '',
             customerName: rental.customerName || '',
             customerPhone: rental.customerPhone || '',
-            startDate: rental.startDate ? rental.startDate.split('T')[0] : '',
-            expectedReturnDate: rental.expectedReturnDate ? rental.expectedReturnDate.split('T')[0] : '',
             extraDiscount: rental.extraDiscount || 0,
-            paymentMethod: rental.paymentMethod || 'Cash'
+            paymentMethod: rental.paymentMethod || 'Cash',
+            splitCash: rental.cashAmount || '',
+            splitUpi: rental.upiAmount || '',
         });
         setShowModal(true);
     };
@@ -110,24 +120,34 @@ export default function Rentals() {
     const closeModal = () => {
         setShowModal(false);
         setEditingId(null);
-        setFormData({ ornamentName: '', dailyPrice: '', advanceAmount: '', customerName: '', customerPhone: '', startDate: new Date().toISOString().split('T')[0], expectedReturnDate: '', extraDiscount: 0, paymentMethod: 'Cash' });
+        setFormData({ ornamentName: '', rentalPrice: '', advanceAmount: '', customerName: '', customerPhone: '', extraDiscount: 0, paymentMethod: 'Cash', splitCash: '', splitUpi: '' });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         const totalPrice = calculateTotal();
+        const advance = parseFloat(formData.advanceAmount) || 0;
+        const split = resolveSplit(advance, formData.paymentMethod, formData.splitCash, formData.splitUpi);
+        if (split.error) return alert(split.error);
+
         try {
             if (editingId) {
                 await axios.put(`${API_URL}/rentals/${editingId}`, {
                     ...formData,
-                    rentalPrice: totalPrice
+                    rentalPrice: parseFloat(formData.rentalPrice) || 0,
+                    advanceAmount: advance,
+                    cashAmount: split.cashAmount,
+                    upiAmount: split.upiAmount,
                 });
                 closeModal();
             } else {
                 const res = await axios.post(`${API_URL}/rentals`, {
                     ...formData,
-                    rentalPrice: totalPrice,
-                    extraDiscount: parseFloat(formData.extraDiscount) || 0
+                    rentalPrice: parseFloat(formData.rentalPrice) || 0,
+                    advanceAmount: advance,
+                    extraDiscount: parseFloat(formData.extraDiscount) || 0,
+                    cashAmount: split.cashAmount,
+                    upiAmount: split.upiAmount,
                 });
                 const newRental = res.data;
                 closeModal();
@@ -135,9 +155,9 @@ export default function Rentals() {
                     invoiceNo: newRental.id.slice(-6).toUpperCase(),
                     date: new Date().toISOString(),
                     customerInfo: { name: formData.customerName, phone: formData.customerPhone },
-                    paymentMethod: formData.paymentMethod,
+                    paymentMethod: split.cashAmount > 0 && split.upiAmount > 0 ? 'Split' : split.upiAmount > 0 ? 'UPI' : 'Cash',
                     cartItems: [{
-                        name: `${formData.ornamentName} (${Math.round(Math.abs(new Date(formData.expectedReturnDate) - new Date(formData.startDate)) / (1000 * 60 * 60 * 24)) || 1} Days)`,
+                        name: `${formData.ornamentName} (Advance Received)`,
                         quantity: 1,
                         rentalPrice: calculateSubtotal()
                     }],
@@ -148,21 +168,36 @@ export default function Rentals() {
             fetchRentals();
         } catch (err) {
             console.error(err);
-            alert('Failed to save rental');
+            alert(err.response?.data?.error || 'Failed to save rental');
         }
     };
 
-    const handleReturn = async (id) => {
-        const rental = rentals.find(r => r.id === id);
+    const openSettle = (rental) => {
+        setSettleRental(rental);
+        setSettleMethod('Cash');
+        setSettleCash('');
+        setSettleUpi('');
+    };
+
+    const settleDue = () => {
+        if (!settleRental) return 0;
+        return Math.max(0, (parseFloat(settleRental.rentalPrice) || 0) - (parseFloat(settleRental.extraDiscount) || 0) - (parseFloat(settleRental.advanceAmount) || 0));
+    };
+
+    const confirmSettle = async () => {
+        const rental = settleRental;
         if (!rental) return;
+        const due = settleDue();
+        const split = resolveSplit(due, settleMethod, settleCash, settleUpi);
+        if (split.error) return alert(split.error);
 
         try {
-            await axios.put(`${API_URL}/rentals/${id}`, {
-                status: 'Returned',
-                actualReturnDate: new Date().toISOString()
+            await axios.put(`${API_URL}/rentals/${rental.id}/return`, {
+                cashAmount: split.cashAmount,
+                upiAmount: split.upiAmount,
             });
 
-            // Generate Settlement Bill
+            setSettleRental(null);
             setShowPrint({
                 invoiceNo: (rental.id || '').slice(-6).toUpperCase(),
                 date: new Date().toISOString(),
@@ -173,7 +208,7 @@ export default function Rentals() {
                     {
                         name: `${rental.ornamentName} (Base Price)`,
                         quantity: 1,
-                        rentalPrice: parseFloat(rental.rentalPrice || 0) + parseFloat(rental.extraDiscount || 0)
+                        rentalPrice: parseFloat(rental.rentalPrice || 0)
                     },
                     {
                         name: `Advance Paid (Receipt Ref: #${(rental.id || '').slice(-6).toUpperCase()})`,
@@ -181,23 +216,20 @@ export default function Rentals() {
                         rentalPrice: -(parseFloat(rental.advanceAmount) || 0)
                     }
                 ],
-                total: parseFloat(rental.rentalPrice) - (parseFloat(rental.advanceAmount) || 0),
+                total: due,
                 extraDiscount: parseFloat(rental.extraDiscount) || 0,
-                paymentMethod: 'Cash'
+                paymentMethod: split.cashAmount > 0 && split.upiAmount > 0 ? 'Split' : split.upiAmount > 0 ? 'UPI' : 'Cash'
             });
 
             fetchRentals();
         } catch (err) {
             console.error(err);
+            alert(err.response?.data?.error || 'Failed to settle rental');
         }
     };
 
     const filteredRentals = rentals
         .filter(rental => rental.status === activeTab)
-        .filter(rental => {
-            if (!dateFilter) return true;
-            return rental.expectedReturnDate === dateFilter;
-        })
         .filter(rental => {
             const id = (rental.id || '').slice(-6).toLowerCase();
             const s = (activeTab === 'Rented' ? rentedSearch : returnedSearch).toLowerCase();
@@ -247,7 +279,7 @@ export default function Rentals() {
                 </div>
             </div>
 
-            {/* Tabs & Date Filter */}
+            {/* Tabs */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex gap-2 p-1 lg:p-1.5 bg-white rounded-xl lg:rounded-2xl w-full sm:w-fit border border-slate-100 shadow-sm">
                     <button
@@ -263,24 +295,6 @@ export default function Rentals() {
                         Returned ({rentals.filter(r => r.status === 'Returned').length})
                     </button>
                 </div>
-
-                <div className="flex items-center gap-3 bg-white p-1 lg:p-1.5 rounded-xl lg:rounded-2xl border border-slate-100 shadow-sm pr-3 lg:pr-4 group transition-all hover:border-primary-100 w-full sm:w-auto">
-                    <div className="flex items-center gap-2 pl-3 border-r border-slate-100 pr-3 shrink-0">
-                        <Calendar className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-slate-400 group-hover:text-primary-500" />
-                        <label className="text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Due Date</label>
-                    </div>
-                    <input
-                        type="date"
-                        className="text-[10px] lg:text-xs font-black text-slate-700 outline-none bg-transparent cursor-pointer flex-1"
-                        value={dateFilter}
-                        onChange={(e) => setDateFilter(e.target.value)}
-                    />
-                    {dateFilter && (
-                        <button onClick={() => setDateFilter('')} className="p-1 lg:p-1.5 hover:bg-slate-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors">
-                            <X className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
-                        </button>
-                    )}
-                </div>
             </div>
 
             <div className="bg-white rounded-2xl lg:rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
@@ -292,7 +306,6 @@ export default function Rentals() {
                                 <th className="px-4 lg:px-6 py-4 lg:py-5">Ornament</th>
                                 <th className="px-4 lg:px-6 py-4 lg:py-5">Customer</th>
                                 <th className="px-4 lg:px-6 py-4 lg:py-5 text-right">Finances</th>
-                                <th className="px-4 lg:px-6 py-4 lg:py-5 text-center">Due Date</th>
                                 <th className="px-4 lg:px-6 py-4 lg:py-5 text-center">Status</th>
                                 <th className="px-4 lg:px-8 py-4 lg:py-5 text-right">Actions</th>
                             </tr>
@@ -331,11 +344,6 @@ export default function Rentals() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-6 text-center">
-                                        <span className="text-xs font-black text-slate-600 tracking-tight">
-                                            {new Date(rental.expectedReturnDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-6 text-center">
                                         <span className={`inline-flex px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${rental.status === 'Returned' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
                                             {rental.status}
                                         </span>
@@ -359,7 +367,7 @@ export default function Rentals() {
                                             <button
                                                 onClick={() => setShowPrint({
                                                     invoiceNo: (rental.id || '').slice(-6).toUpperCase(),
-                                                    date: rental.startDate,
+                                                    date: rental.createdAt || new Date().toISOString(),
                                                     customerInfo: { name: rental.customerName, phone: rental.customerPhone },
                                                     cartItems: [{
                                                         name: rental.ornamentName,
@@ -376,7 +384,7 @@ export default function Rentals() {
                                             </button>
                                             {rental.status === 'Rented' && (
                                                 <button
-                                                    onClick={() => handleReturn(rental.id)}
+                                                    onClick={() => openSettle(rental)}
                                                     className="px-4 py-2 bg-slate-900 text-white rounded-xl hover:bg-primary-600 transition-all font-black text-[9px] uppercase tracking-widest shadow-lg shadow-slate-100 active:scale-95 whitespace-nowrap"
                                                 >
                                                     Return
@@ -436,14 +444,14 @@ export default function Rentals() {
                                         </div>
 
                                         <div className="group">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-primary-500 transition-colors">Daily Price (₹)</label>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-primary-500 transition-colors">Rental Price (₹)</label>
                                             <input
                                                 type="number"
                                                 required
-                                                placeholder="e.g. 200"
+                                                placeholder="e.g. 500"
                                                 className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-sm font-bold focus:bg-white focus:ring-4 focus:ring-primary-50 focus:border-primary-200 transition-all outline-none"
-                                                value={formData.dailyPrice}
-                                                onChange={(e) => setFormData({ ...formData, dailyPrice: e.target.value })}
+                                                value={formData.rentalPrice}
+                                                onChange={(e) => setFormData({ ...formData, rentalPrice: e.target.value })}
                                             />
                                         </div>
 
@@ -483,28 +491,6 @@ export default function Rentals() {
                                             />
                                         </div>
 
-                                        <div className="group">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-primary-500 transition-colors">Start Date</label>
-                                            <input
-                                                type="date"
-                                                required
-                                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-sm font-bold focus:bg-white focus:ring-4 focus:ring-primary-50 focus:border-primary-200 transition-all outline-none cursor-pointer"
-                                                value={formData.startDate}
-                                                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                                            />
-                                        </div>
-
-                                        <div className="group">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-primary-500 transition-colors">Expected Return</label>
-                                            <input
-                                                type="date"
-                                                required
-                                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-[1.25rem] text-sm font-bold focus:bg-white focus:ring-4 focus:ring-primary-50 focus:border-primary-200 transition-all outline-none cursor-pointer"
-                                                value={formData.expectedReturnDate}
-                                                onChange={(e) => setFormData({ ...formData, expectedReturnDate: e.target.value })}
-                                            />
-                                        </div>
-
                                         <div className="col-span-2 group">
                                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-primary-500 transition-colors">Extra Discount (₹)</label>
                                             <input
@@ -517,23 +503,41 @@ export default function Rentals() {
                                         </div>
 
                                         <div className="col-span-2 space-y-3 pt-2">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Payment Method</label>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormData({ ...formData, paymentMethod: 'Cash' })}
-                                                    className={`py-3.5 rounded-[1.25rem] text-xs font-black transition-all border ${formData.paymentMethod === 'Cash' ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'}`}
-                                                >
-                                                    CASH
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormData({ ...formData, paymentMethod: 'UPI' })}
-                                                    className={`py-3.5 rounded-[1.25rem] text-xs font-black transition-all border ${formData.paymentMethod === 'UPI' ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'}`}
-                                                >
-                                                    UPI
-                                                </button>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Advance Payment Method</label>
+                                            <div className="grid grid-cols-3 gap-4">
+                                                {['Cash', 'UPI', 'Split'].map(m => (
+                                                    <button
+                                                        key={m}
+                                                        type="button"
+                                                        onClick={() => setFormData({ ...formData, paymentMethod: m })}
+                                                        className={`py-3.5 rounded-[1.25rem] text-xs font-black transition-all border ${formData.paymentMethod === m ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'}`}
+                                                    >
+                                                        {m.toUpperCase()}
+                                                    </button>
+                                                ))}
                                             </div>
+                                            {formData.paymentMethod === 'Split' && (
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">Cash (₹)</label>
+                                                        <input
+                                                            type="number"
+                                                            className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none"
+                                                            value={formData.splitCash}
+                                                            onChange={(e) => setFormData({ ...formData, splitCash: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 px-1">UPI (₹)</label>
+                                                        <input
+                                                            type="number"
+                                                            className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold outline-none"
+                                                            value={formData.splitUpi}
+                                                            onChange={(e) => setFormData({ ...formData, splitUpi: e.target.value })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Summary Card */}
@@ -586,6 +590,56 @@ export default function Rentals() {
                     </div>
                 )}
             </div>
+            {settleRental && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden">
+                        <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Settle & Return</h3>
+                            <button onClick={() => setSettleRental(null)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-8 space-y-5">
+                            <p className="text-sm text-slate-500">{settleRental.ornamentName} &middot; {settleRental.customerName}</p>
+                            <div className="flex justify-between items-center p-4 bg-slate-900 rounded-2xl">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount Due</span>
+                                <span className="text-2xl font-black text-white">₹{settleDue().toLocaleString()}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                {['Cash', 'UPI', 'Split'].map(m => (
+                                    <button
+                                        key={m}
+                                        onClick={() => setSettleMethod(m)}
+                                        className={`py-3 rounded-xl text-[10px] font-black uppercase transition-all border ${settleMethod === m ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                                    >
+                                        {m}
+                                    </button>
+                                ))}
+                            </div>
+                            {settleMethod === 'Split' && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash (₹)</label>
+                                        <input type="number" className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold outline-none" value={settleCash} onChange={(e) => setSettleCash(e.target.value)} />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">UPI (₹)</label>
+                                        <input type="number" className="w-full mt-1 px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm font-bold outline-none" value={settleUpi} onChange={(e) => setSettleUpi(e.target.value)} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div className="px-8 py-6 border-t border-slate-100 bg-slate-50/50 flex gap-4">
+                            <button onClick={() => setSettleRental(null)} className="flex-1 px-6 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-widest">
+                                Cancel
+                            </button>
+                            <button onClick={confirmSettle} className="flex-1 px-6 py-3.5 bg-primary-600 text-white rounded-xl text-xs font-black uppercase tracking-widest">
+                                Confirm Return
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {showPrint && (
                 <PrintInvoice
                     bill={showPrint}

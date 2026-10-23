@@ -6,6 +6,22 @@ import StockMovement from '../models/StockMovement.js';
 
 const router = express.Router();
 
+// Derives payment fields from the Cash/UPI amounts actually collected,
+// rather than trusting a separate "payment method" choice that could
+// disagree with them. Throws if the two amounts add up to more than the
+// invoice total (overpayment is always a data-entry mistake).
+function resolvePayment(total, body) {
+    const cashAmount = Math.max(0, Number(body.cashAmount ?? (body.paymentMethod === 'Cash' ? total : 0)) || 0);
+    const upiAmount = Math.max(0, Number(body.upiAmount ?? (body.paymentMethod === 'UPI' ? total : 0)) || 0);
+    const amountPaid = cashAmount + upiAmount;
+    if (amountPaid > total + 0.5) {
+        throw new Error(`Amount paid (₹${amountPaid}) exceeds the invoice total (₹${total})`);
+    }
+    const balanceDue = Math.max(0, Math.round((total - amountPaid) * 100) / 100);
+    const paymentMethod = cashAmount > 0 && upiAmount > 0 ? 'Split' : upiAmount > 0 ? 'UPI' : 'Cash';
+    return { cashAmount, upiAmount, amountPaid, balanceDue, paymentMethod };
+}
+
 // Get all bills
 router.get('/', async (req, res) => {
     try {
@@ -39,6 +55,10 @@ router.post('/', async (req, res) => {
                 quantity: item.quantity,
                 price: Number(item.price ?? item.sellingPrice ?? item.rentalPrice ?? 0),
             }));
+
+            const total = Number(billData.total) || 0;
+            const payment = resolvePayment(total, billData);
+            Object.assign(billData, payment);
 
             // 1. Check stock for all product items
             for (const item of items) {
@@ -133,6 +153,17 @@ router.put('/:id/cancel', async (req, res) => {
         // refresh), only the first one can ever match and restore stock —
         // the second finds nothing to update and reports "already cancelled"
         // instead of restoring stock twice.
+        const preBill = await Bill.findById(id).session(session).lean();
+        if (!preBill) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ error: 'Invoice not found' });
+        }
+
+        // Cancelling always refunds whatever was actually collected, in the
+        // same Cash/UPI split it was received in — this is what the
+        // cash-closing reconciliation subtracts back out, independent of
+        // whether the goods were physically returned to stock.
         const bill = await Bill.findOneAndUpdate(
             { _id: id, status: { $ne: 'Cancelled' } },
             {
@@ -141,6 +172,8 @@ router.put('/:id/cancel', async (req, res) => {
                     cancelledAt: new Date(),
                     stockRestored: restoreStock,
                     cancelReason: reason,
+                    refundedCashAmount: preBill.cashAmount || 0,
+                    refundedUpiAmount: preBill.upiAmount || 0,
                 },
             },
             { session, new: false } // return the PRE-update doc so we still have its items
@@ -190,6 +223,116 @@ router.put('/:id/cancel', async (req, res) => {
         await session.abortTransaction();
         session.endSession();
         res.status(500).json({ error: error.message });
+    }
+});
+
+// Edit an existing invoice: change items/quantities/discount, reconcile
+// stock for only the DIFFERENCE between old and new quantities (never
+// double-apply a stock change), recompute totals/payment, and keep a
+// full before/after audit trail. The invoice number never changes.
+router.put('/:id/edit', async (req, res) => {
+    const { id } = req.params;
+    const reason = (req.body.reason || '').toString().slice(0, 500);
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const oldBill = await Bill.findById(id).session(session);
+        if (!oldBill) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({ error: 'Invoice not found' });
+        }
+        if (oldBill.status === 'Cancelled') {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({ error: 'Cannot edit a cancelled invoice' });
+        }
+
+        const newItems = (req.body.items || []).map(item => ({
+            id: item.id,
+            name: item.name,
+            type: item.type || 'product',
+            quantity: item.quantity,
+            price: Number(item.price ?? item.sellingPrice ?? item.rentalPrice ?? 0),
+        }));
+
+        // Net quantity delta per product id: positive = more sold now
+        // (deduct extra stock), negative = less sold now (restore stock).
+        const qtyById = new Map();
+        for (const item of oldBill.items) {
+            if (item.type !== 'product') continue;
+            qtyById.set(item.id, (qtyById.get(item.id) || 0) - Number(item.quantity || 0));
+        }
+        for (const item of newItems) {
+            if (item.type !== 'product') continue;
+            qtyById.set(item.id, (qtyById.get(item.id) || 0) + Number(item.quantity || 0));
+        }
+
+        // Check stock sufficiency before applying any change
+        for (const [productId, delta] of qtyById) {
+            if (delta > 0) {
+                const product = await Product.findById(productId).session(session);
+                if (!product) throw new Error(`Product ${productId} not found`);
+                if ((Number(product.stock) || 0) < delta) {
+                    throw new Error(`Insufficient stock for ${product.name} to apply this edit`);
+                }
+            }
+        }
+
+        const adjustments = [];
+        for (const [productId, delta] of qtyById) {
+            if (delta === 0) continue;
+            await Product.findByIdAndUpdate(productId, { $inc: { stock: -delta } }, { session });
+            const name = (newItems.find(i => i.id === productId) || oldBill.items.find(i => i.id === productId) || {}).name || '';
+            adjustments.push({
+                productId,
+                productName: name,
+                type: 'adjustment',
+                quantity: -delta, // negative means stock increased, positive means stock decreased
+                invoiceId: oldBill._id.toString(),
+                invoiceNo: oldBill.invoiceNo,
+            });
+        }
+        if (adjustments.length) {
+            await StockMovement.create(adjustments, { session, ordered: true });
+        }
+
+        const total = Number(req.body.total) || 0;
+        const payment = resolvePayment(total, req.body);
+        const extraDiscount = Number(req.body.extraDiscount) || 0;
+
+        const before = {
+            items: oldBill.items,
+            total: oldBill.total,
+            extraDiscount: oldBill.extraDiscount,
+            cashAmount: oldBill.cashAmount,
+            upiAmount: oldBill.upiAmount,
+        };
+        const after = { items: newItems, total, extraDiscount, ...payment };
+
+        oldBill.items = newItems;
+        oldBill.total = total;
+        oldBill.extraDiscount = extraDiscount;
+        oldBill.cashAmount = payment.cashAmount;
+        oldBill.upiAmount = payment.upiAmount;
+        oldBill.amountPaid = payment.amountPaid;
+        oldBill.balanceDue = payment.balanceDue;
+        oldBill.paymentMethod = payment.paymentMethod;
+        oldBill.editedAt = new Date();
+        oldBill.editHistory.push({ at: new Date(), reason, before, after });
+
+        await oldBill.save({ session });
+        await session.commitTransaction();
+        session.endSession();
+
+        const updated = await Bill.findById(id).lean();
+        res.json({ ...updated, id: updated._id.toString() });
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        res.status(400).json({ error: error.message });
     }
 });
 

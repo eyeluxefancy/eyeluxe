@@ -10,15 +10,18 @@ router.get('/dashboard', async (req, res) => {
     try {
         const startOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString();
 
-        const [products, rentals, bills, expenses] = await Promise.all([
+        // Bills are fetched WITHOUT excluding Cancelled ones here: sales
+        // totals must exclude them, but the cash-closing reconciliation
+        // still needs cancelled bills' refund amounts for the day they
+        // were cancelled, not the day they were originally sold.
+        const [products, rentals, allBillsRaw, expenses] = await Promise.all([
             Product.find().lean(),
-            Rental.find({ status: 'Rented' }).lean(),
-            // A cancelled sale must never count toward revenue — exclude it
-            // from every dashboard figure (it still exists in the DB with
-            // status:'Cancelled' for the full invoice history/audit trail).
-            Bill.find({ date: { $gte: startOfYear }, status: { $ne: 'Cancelled' } }).lean(),
-            Expense.find().lean(),
+            Rental.find().lean(),
+            Bill.find({ date: { $gte: startOfYear } }).lean(),
+            Expense.find({ date: { $gte: startOfYear } }).lean(),
         ]);
+
+        const bills = allBillsRaw.filter(b => b.status !== 'Cancelled');
 
         // Total Stock Value
         const totalStockValue = products.reduce((acc, p) => acc + ((p.purchasePrice || 0) * (p.stock || 0)), 0);
@@ -32,15 +35,17 @@ router.get('/dashboard', async (req, res) => {
 
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        const getSalesForPeriod = (startDate) =>
-            bills.filter(b => new Date(b.date) >= startDate);
+        const filterByDate = (arr, dateField, startDate) =>
+            arr.filter(item => item[dateField] && new Date(item[dateField]) >= startDate);
+
+        const getSalesForPeriod = (startDate) => bills.filter(b => new Date(b.date) >= startDate);
 
         const getSalesAnalytics = (periodBills) =>
             periodBills.reduce((acc, b) => {
                 const method = (b.paymentMethod || 'Cash').toUpperCase();
                 acc[method] = (acc[method] || 0) + (b.total || 0);
                 return acc;
-            }, { CASH: 0, UPI: 0 });
+            }, { CASH: 0, UPI: 0, SPLIT: 0 });
 
         const todayBills = getSalesForPeriod(today);
         const weekBills = getSalesForPeriod(startOfWeek);
@@ -49,12 +54,63 @@ router.get('/dashboard', async (req, res) => {
 
         const sumTotal = (arr) => arr.reduce((acc, b) => acc + (b.total || 0), 0);
 
-        const totalExpenses = expenses.reduce((acc, e) => acc + (e.amount || 0), 0);
         const pendingReturns = rentals.filter(r => r.status === 'Rented').length;
 
         const thirtyDaysFromNow = new Date();
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
         const expiringAlerts = products.filter(p => p.expiryDate && new Date(p.expiryDate) < thirtyDaysFromNow).length;
+
+        // --- Reconciliation: gross/net/cash/UPI/refunds/expenses, kept
+        // separate so a refundable rental deposit is never mistaken for
+        // revenue, and a UPI-paid expense never looks like it reduced the
+        // physical cash drawer.
+        const buildReconciliation = (startDate) => {
+            const periodBills = getSalesForPeriod(startDate); // active (non-cancelled) only
+            const grossSales = periodBills.reduce((acc, b) => acc + (b.total || 0) + (b.extraDiscount || 0), 0);
+            const discounts = periodBills.reduce((acc, b) => acc + (b.extraDiscount || 0), 0);
+            const netSales = sumTotal(periodBills);
+            const cashReceived = periodBills.reduce((acc, b) => acc + (b.cashAmount || 0), 0);
+            const upiReceived = periodBills.reduce((acc, b) => acc + (b.upiAmount || 0), 0);
+            const outstandingBalance = periodBills.reduce((acc, b) => acc + (b.balanceDue || 0), 0);
+
+            // Refunds are counted on the day the CANCELLATION happened,
+            // not the day of the original sale.
+            const cancelledInPeriod = filterByDate(allBillsRaw, 'cancelledAt', startDate).filter(b => b.status === 'Cancelled');
+            const refundsCash = cancelledInPeriod.reduce((acc, b) => acc + (b.refundedCashAmount || 0), 0);
+            const refundsUpi = cancelledInPeriod.reduce((acc, b) => acc + (b.refundedUpiAmount || 0), 0);
+
+            const periodExpenses = filterByDate(expenses, 'date', startDate);
+            const cashExpenses = periodExpenses
+                .filter(e => (e.paymentMethod || 'Cash') === 'Cash')
+                .reduce((acc, e) => acc + (e.amount || 0), 0);
+            const upiExpenses = periodExpenses
+                .filter(e => (e.paymentMethod || 'Cash') === 'UPI')
+                .reduce((acc, e) => acc + (e.amount || 0), 0);
+            const totalExpenses = cashExpenses + upiExpenses;
+
+            const periodRentals = filterByDate(rentals, 'createdAt', startDate);
+            const rentalAdvances = periodRentals.reduce((acc, r) => acc + (r.advanceAmount || 0), 0);
+            const rentalAdvanceCash = periodRentals.reduce((acc, r) => acc + (r.cashAmount || 0), 0);
+            const rentalAdvanceUpi = periodRentals.reduce((acc, r) => acc + (r.upiAmount || 0), 0);
+            const settledRentals = filterByDate(rentals, 'returnedAt', startDate);
+            const rentalSettlementCash = settledRentals.reduce((acc, r) => acc + (r.settlementCashAmount || 0), 0);
+            const rentalSettlementUpi = settledRentals.reduce((acc, r) => acc + (r.settlementUpiAmount || 0), 0);
+
+            // No persisted daily opening float exists yet, so this is the
+            // NET cash movement for the period, not an absolute drawer
+            // balance — the shop still adds their own opening cash to it.
+            const netCashMovement = (cashReceived + rentalAdvanceCash + rentalSettlementCash) - refundsCash - cashExpenses;
+
+            return {
+                grossSales, discounts, netSales, outstandingBalance,
+                cashReceived, upiReceived,
+                refundsCash, refundsUpi,
+                cashExpenses, upiExpenses, totalExpenses,
+                rentalAdvances, rentalAdvanceCash, rentalAdvanceUpi,
+                rentalSettlementCash, rentalSettlementUpi,
+                netCashMovement,
+            };
+        };
 
         res.json({
             totalStockValue,
@@ -62,7 +118,7 @@ router.get('/dashboard', async (req, res) => {
             weekSales: sumTotal(weekBills),
             monthSales: sumTotal(monthBills),
             yearSales: sumTotal(yearBills),
-            totalExpenses,
+            totalExpenses: expenses.reduce((acc, e) => acc + (e.amount || 0), 0),
             pendingReturns,
             expiringAlerts,
             recentBills: [...bills].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5),
@@ -72,6 +128,12 @@ router.get('/dashboard', async (req, res) => {
                 week: getSalesAnalytics(weekBills),
                 month: getSalesAnalytics(monthBills),
                 year: getSalesAnalytics(yearBills),
+            },
+            reconciliation: {
+                today: buildReconciliation(today),
+                week: buildReconciliation(startOfWeek),
+                month: buildReconciliation(startOfMonth),
+                year: buildReconciliation(new Date(startOfYear)),
             },
             today: today.toISOString(),
         });

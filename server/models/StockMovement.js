@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 const stockMovementSchema = new mongoose.Schema({
     productId: { type: String, required: true },
     productName: { type: String, default: '' },
-    type: { type: String, enum: ['sale', 'restore'], required: true },
+    type: { type: String, enum: ['sale', 'restore', 'adjustment'], required: true },
     quantity: { type: Number, required: true }, // always positive; `type` implies direction
     invoiceId: { type: String, default: null },
     invoiceNo: { type: String, default: '' },

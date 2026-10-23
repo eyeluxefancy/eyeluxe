@@ -64,6 +64,9 @@ export default function Dashboard() {
             week: { CASH: 0, UPI: 0 },
             month: { CASH: 0, UPI: 0 },
             year: { CASH: 0, UPI: 0 }
+        },
+        reconciliation: {
+            today: {}, week: {}, month: {}, year: {}
         }
     });
 
@@ -189,6 +192,65 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Reconciliation */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                <div className="px-8 py-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/30">
+                    <div>
+                        <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight italic">Sales & Cash Reconciliation</h4>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{periodLabel[selectedPeriod]} &middot; excludes refundable rental deposits from revenue</p>
+                    </div>
+                    <div className="flex gap-1 p-1 bg-white rounded-2xl border border-slate-100 shadow-sm w-fit">
+                        {['today', 'week', 'month', 'year'].map(p => (
+                            <button
+                                key={p}
+                                onClick={() => setSelectedPeriod(p)}
+                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${selectedPeriod === p ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                {p}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                {(() => {
+                    const r = stats.reconciliation?.[selectedPeriod] || {};
+                    const row = (label, value, cls = 'text-slate-800') => (
+                        <div className="flex justify-between items-center py-2.5 border-b border-slate-50 last:border-0">
+                            <span className="text-xs font-bold text-slate-500">{label}</span>
+                            <span className={`text-sm font-black ${cls}`}>₹{Number(value || 0).toLocaleString()}</span>
+                        </div>
+                    );
+                    return (
+                        <div className="p-8 grid grid-cols-1 md:grid-cols-3 gap-8">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sales</p>
+                                {row('Gross Sales', r.grossSales)}
+                                {row('Discounts', r.discounts, 'text-primary-500')}
+                                {row('Net Sales', r.netSales, 'text-emerald-600')}
+                                {row('Outstanding Balance', r.outstandingBalance, 'text-amber-600')}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Collections</p>
+                                {row('Cash Received', r.cashReceived, 'text-emerald-600')}
+                                {row('UPI Received', r.upiReceived, 'text-sky-600')}
+                                {row('Refunded (Cash)', r.refundsCash, 'text-rose-500')}
+                                {row('Refunded (UPI)', r.refundsUpi, 'text-rose-500')}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Expenses & Rentals</p>
+                                {row('Cash Expenses', r.cashExpenses, 'text-rose-500')}
+                                {row('UPI Expenses', r.upiExpenses, 'text-rose-500')}
+                                {row('Rental Advances (Deposits)', r.rentalAdvances, 'text-indigo-500')}
+                                <div className="flex justify-between items-center py-3 mt-1 border-t-2 border-slate-100">
+                                    <span className="text-xs font-black text-slate-700 uppercase">Net Cash Movement</span>
+                                    <span className="text-lg font-black text-slate-900">₹{Number(r.netCashMovement || 0).toLocaleString()}</span>
+                                </div>
+                                <p className="text-[9px] text-slate-400 font-bold leading-relaxed">Add your own opening cash float to this for the actual drawer balance — no opening float is stored yet.</p>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Details Section */}
@@ -370,9 +432,12 @@ export default function Dashboard() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <span className={`inline-flex px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${bill.paymentMethod?.toUpperCase() === 'UPI' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                                                    <span className={`inline-flex px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${bill.paymentMethod?.toUpperCase() === 'UPI' ? 'bg-blue-50 text-blue-600 border border-blue-100' : bill.paymentMethod?.toUpperCase() === 'SPLIT' ? 'bg-violet-50 text-violet-600 border border-violet-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
                                                         {bill.paymentMethod || 'CASH'}
                                                     </span>
+                                                    {bill.balanceDue > 0 && (
+                                                        <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mt-1">Due ₹{bill.balanceDue.toLocaleString()}</p>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-5 text-right pr-8">
                                                     <span className="text-sm font-black text-primary-600 italic">₹{bill.total?.toLocaleString()}</span>

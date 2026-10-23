@@ -24,7 +24,7 @@ export default function Expenses() {
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [saving, setSaving] = useState(false);
-    const [formData, setFormData] = useState({ category: 'Others', amount: '', date: '', notes: '' });
+    const [formData, setFormData] = useState({ category: 'Others', amount: '', date: '', notes: '', paymentMethod: 'Cash' });
 
     const fetchExpenses = async () => {
         try {
@@ -91,7 +91,8 @@ export default function Expenses() {
             category: expense.category || 'Others',
             amount: expense.amount,
             date: expense.date ? new Date(expense.date).toISOString().split('T')[0] : '',
-            notes: expense.notes || ''
+            notes: expense.notes || '',
+            paymentMethod: expense.paymentMethod || 'Cash'
         });
         setShowModal(true);
     };
@@ -99,7 +100,7 @@ export default function Expenses() {
     const closeModal = () => {
         setShowModal(false);
         setEditingId(null);
-        setFormData({ category: 'Others', amount: '', date: '', notes: '' });
+        setFormData({ category: 'Others', amount: '', date: '', notes: '', paymentMethod: 'Cash' });
     };
 
     const handleSubmit = async (e) => {
@@ -210,16 +211,17 @@ export default function Expenses() {
                                 <th className="px-8 py-5">Date</th>
                                 <th className="px-6 py-5">Category</th>
                                 <th className="px-6 py-5">Notes</th>
+                                <th className="px-6 py-5 text-center">Paid Via</th>
                                 <th className="px-6 py-5 text-right">Amount</th>
                                 <th className="px-8 py-5 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {loading ? (
-                                <tr><td colSpan={5} className="px-8 py-16 text-center text-sm font-bold text-slate-400">Loading expenses…</td></tr>
+                                <tr><td colSpan={6} className="px-8 py-16 text-center text-sm font-bold text-slate-400">Loading expenses…</td></tr>
                             ) : filteredExpenses.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-8 py-20 text-center">
+                                    <td colSpan={6} className="px-8 py-20 text-center">
                                         <div className="flex flex-col items-center gap-3">
                                             <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center">
                                                 <Wallet className="w-8 h-8 text-slate-300" />
@@ -238,6 +240,11 @@ export default function Expenses() {
                                         <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${categoryStyles[expense.category] || categoryStyles.Others}`}>{expense.category || 'Others'}</span>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-500 font-medium max-w-xs truncate">{expense.notes || '—'}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${expense.paymentMethod === 'UPI' ? 'bg-sky-50 text-sky-600 border-sky-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                                            {expense.paymentMethod || 'Cash'}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-4 font-black text-rose-500 text-right whitespace-nowrap">₹{Number(expense.amount || 0).toLocaleString()}</td>
                                     <td className="px-8 py-4 text-right">
                                         <div className="flex justify-end gap-1">
@@ -318,6 +325,21 @@ export default function Expenses() {
                                             value={formData.date}
                                             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                                         />
+                                    </div>
+                                    <div className="group">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Paid Via</label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {['Cash', 'UPI'].map(m => (
+                                                <button
+                                                    key={m}
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, paymentMethod: m })}
+                                                    className={`py-3 rounded-[1.25rem] text-xs font-black transition-all border ${formData.paymentMethod === m ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-200' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100'}`}
+                                                >
+                                                    {m.toUpperCase()}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                     <div className="group">
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1 group-focus-within:text-primary-500 transition-colors">Notes (Optional)</label>
